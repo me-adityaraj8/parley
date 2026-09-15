@@ -139,6 +139,21 @@ should issue short-lived credentials from a server route.
 
 ## Deployment
 
+**One command, once you are logged in:**
+
+```bash
+npx partykit login     # interactive, once
+vercel login           # interactive, once
+npm run deploy         # deploys both, in the right order
+```
+
+`npm run deploy` publishes the signaling server, reads back its host, writes
+that host into the Vercel environment, and then deploys the app. The order
+matters: `NEXT_PUBLIC_*` variables are inlined into the client bundle at
+**build** time, so the app must know the signaling host before it is built.
+
+### Doing it manually
+
 Two pieces deploy independently.
 
 ### 1. Signaling server → PartyKit

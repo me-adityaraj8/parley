@@ -17,7 +17,8 @@
     "test:mesh": "node scripts/test-mesh.mjs",
     "test:share": "node scripts/test-screenshare.mjs",
     "test:all": "npm run test:signaling && npm run test:call && npm run test:mesh && npm run test:share && npm run test:a11y",
-    "test:a11y": "node scripts/test-a11y.mjs"
+    "test:a11y": "node scripts/test-a11y.mjs",
+    "deploy": "bash scripts/deploy.sh"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",

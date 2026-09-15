@@ -7,7 +7,7 @@ import { TechFlow } from "@/components/landing/tech-flow";
 import { FinalCta } from "@/components/landing/final-cta";
 import { Footer } from "@/components/landing/footer";
 
-const REPO_URL = process.env.NEXT_PUBLIC_REPO_URL ?? "https://github.com";
+const REPO_URL = process.env.NEXT_PUBLIC_REPO_URL ?? "https://github.com/me-adityaraj8/parley";
 
 export default function LandingPage() {
   return (
