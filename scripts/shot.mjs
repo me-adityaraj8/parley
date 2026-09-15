@@ -58,7 +58,7 @@ page.on("requestfailed", (r) =>
   problems.push(`requestfailed: ${r.url()} — ${r.failure()?.errorText}`),
 );
 
-await page.goto(`${BASE}${path}`, { waitUntil: "networkidle0", timeout: 30_000 });
+await page.goto(`${BASE}${path}`, { waitUntil: "domcontentloaded", timeout: 45_000 });
 // Let fonts settle and entrance animations finish before capturing.
 await page.evaluate(() => document.fonts.ready);
 await new Promise((r) => setTimeout(r, wait));

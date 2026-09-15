@@ -62,7 +62,7 @@ async function join(browser, name) {
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
-  await page.goto(`${BASE}/r/${room}`, { waitUntil: "networkidle0", timeout: 30000 });
+  await page.goto(`${BASE}/r/${room}`, { waitUntil: "domcontentloaded", timeout: 45000 });
   await page.waitForSelector("#display-name", { timeout: 20000 });
   await page.type("#display-name", name);
   await page.waitForFunction(() => {

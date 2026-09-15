@@ -40,7 +40,7 @@ export function useChat({ selfId, selfName, broadcast }: UseChatOptions) {
   }, []);
 
   const send = useCallback(
-    (raw: string): boolean => {
+    (raw: string, replyTo?: string): boolean => {
       const body = raw.trim().slice(0, MAX_BODY);
       if (!body || !selfId) return false;
 
@@ -51,9 +51,10 @@ export function useChat({ selfId, selfName, broadcast }: UseChatOptions) {
         body,
         at: Date.now(),
         mine: true,
+        ...(replyTo ? { replyTo } : {}),
       };
 
-      const delivered = broadcast({ t: "chat", id: msg.id, body, at: msg.at });
+      const delivered = broadcast({ t: "chat", id: msg.id, body, at: msg.at, replyTo });
 
       // Optimistic append, flagged if nobody received it. Being honest about
       // undelivered messages matters more in P2P than in a server chat,
@@ -75,6 +76,61 @@ export function useChat({ selfId, selfName, broadcast }: UseChatOptions) {
     [broadcast],
   );
 
+  /** Toggle an emoji on a message. Reactions are per-peer, so they merge. */
+  const applyReaction = useCallback(
+    (messageIdValue: string, emoji: string, peerId: PeerId, on: boolean) => {
+      setMessages((prev) =>
+        prev.map((m) => {
+          if (m.id !== messageIdValue) return m;
+          const reactions = { ...(m.reactions ?? {}) };
+          const list = new Set(reactions[emoji] ?? []);
+          if (on) list.add(peerId);
+          else list.delete(peerId);
+          if (list.size === 0) delete reactions[emoji];
+          else reactions[emoji] = [...list];
+          return { ...m, reactions };
+        }),
+      );
+    },
+    [],
+  );
+
+  const toggleReaction = useCallback(
+    (messageIdValue: string, emoji: string) => {
+      if (!selfId) return;
+      let on = true;
+      setMessages((prev) =>
+        prev.map((m) => {
+          if (m.id !== messageIdValue) return m;
+          on = !(m.reactions?.[emoji] ?? []).includes(selfId);
+          return m;
+        }),
+      );
+      applyReaction(messageIdValue, emoji, selfId, on);
+      broadcast({ t: "chat-react", id: messageIdValue, emoji, on });
+    },
+    [selfId, applyReaction, broadcast],
+  );
+
+  /**
+   * System notices are generated LOCALLY from roster events. No peer sends
+   * them, so a remote participant cannot forge "Ada left".
+   */
+  const systemNotice = useCallback((body: string) => {
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: messageId(),
+        authorId: "system",
+        authorName: "System",
+        body,
+        at: Date.now(),
+        mine: false,
+        system: true,
+      },
+    ]);
+  }, []);
+
   /** Wire this into useWebRTC's onData. */
   const receive = useCallback(
     (from: PeerId, name: string, msg: DataMessage) => {
@@ -92,6 +148,7 @@ export function useChat({ selfId, selfName, broadcast }: UseChatOptions) {
               body: msg.body,
               at: msg.at,
               mine: false,
+              ...(msg.replyTo ? { replyTo: msg.replyTo } : {}),
             },
           ];
         });
@@ -104,6 +161,11 @@ export function useChat({ selfId, selfName, broadcast }: UseChatOptions) {
           delete next[from];
           return next;
         });
+        return;
+      }
+
+      if (msg.t === "chat-react") {
+        applyReaction(msg.id, msg.emoji, from, msg.on);
         return;
       }
 
@@ -130,7 +192,7 @@ export function useChat({ selfId, selfName, broadcast }: UseChatOptions) {
         typingTimers.current.set(from, timer);
       }
     },
-    [],
+    [applyReaction],
   );
 
   const clearPeer = useCallback((id: PeerId) => {
@@ -149,6 +211,8 @@ export function useChat({ selfId, selfName, broadcast }: UseChatOptions) {
     send,
     sendTyping,
     receive,
+    toggleReaction,
+    systemNotice,
     setPanelOpen,
     clearPeer,
   };

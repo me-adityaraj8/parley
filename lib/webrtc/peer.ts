@@ -1,7 +1,17 @@
 "use client";
 
 import type { DataMessage, LinkState, PeerId, SignalPayload } from "@/types";
-import { DATA_CHANNEL_ID, DATA_CHANNEL_LABEL, peerConfig } from "./config";
+import {
+  BULK_CHANNEL_ID,
+  BULK_CHANNEL_LABEL,
+  DATA_CHANNEL_ID,
+  DATA_CHANNEL_LABEL,
+  peerConfig,
+} from "./config";
+
+/** Pause sending above this many buffered bytes; resume below the low mark. */
+const BULK_HIGH_WATER = 4 * 1024 * 1024;
+const BULK_LOW_WATER = 1 * 1024 * 1024;
 
 interface PeerLinkOptions {
   selfId: PeerId;
@@ -11,6 +21,8 @@ interface PeerLinkOptions {
   onStream: (stream: MediaStream) => void;
   onState: (state: LinkState) => void;
   onData: (msg: DataMessage) => void;
+  /** Raw frames from the bulk channel (file chunks). */
+  onBulk?: (data: ArrayBuffer) => void;
 }
 
 /**
@@ -47,6 +59,7 @@ export class PeerLink {
 
   private pc: RTCPeerConnection;
   private channel: RTCDataChannel;
+  private bulk: RTCDataChannel;
   private opts: PeerLinkOptions;
 
   private makingOffer = false;
@@ -79,6 +92,23 @@ export class PeerLink {
       id: DATA_CHANNEL_ID,
       ordered: true,
     });
+    /**
+     * Second negotiated channel for high-volume traffic. Keeping files and
+     * whiteboard strokes off the control channel is what stops a large
+     * transfer from delaying a chat message or a raised hand — SCTP
+     * guarantees order within a channel, not across channels.
+     */
+    this.bulk = this.pc.createDataChannel(BULK_CHANNEL_LABEL, {
+      negotiated: true,
+      id: BULK_CHANNEL_ID,
+      ordered: true,
+    });
+    this.bulk.binaryType = "arraybuffer";
+    this.bulk.bufferedAmountLowThreshold = BULK_LOW_WATER;
+    this.bulk.onmessage = (event: MessageEvent<ArrayBuffer>) => {
+      if (event.data instanceof ArrayBuffer) this.opts.onBulk?.(event.data);
+    };
+
     this.wireChannel();
     this.wireConnection();
   }
@@ -290,6 +320,54 @@ export class PeerLink {
 
   // ------------------------------------------------------------- data
 
+  // ------------------------------------------------------------- bulk
+
+  /**
+   * Sends one binary frame, respecting backpressure.
+   *
+   * `bufferedAmount` is the bytes SCTP has accepted but not yet put on the
+   * wire. Writing without checking it grows an unbounded in-memory queue and
+   * will eventually abort the connection on a slow link. We stop at the high
+   * water mark and resume on `bufferedamountlow`.
+   */
+  async sendBulk(frame: ArrayBuffer): Promise<boolean> {
+    if (this.bulk.readyState !== "open" || this.closed) return false;
+
+    if (this.bulk.bufferedAmount > BULK_HIGH_WATER) {
+      await this.drain();
+      if (this.bulk.readyState !== "open" || this.closed) return false;
+    }
+    try {
+      this.bulk.send(frame);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /** Resolves once the send buffer has drained below the low-water mark. */
+  private drain(): Promise<void> {
+    return new Promise((resolve) => {
+      const done = () => {
+        this.bulk.removeEventListener("bufferedamountlow", done);
+        resolve();
+      };
+      this.bulk.addEventListener("bufferedamountlow", done, { once: true });
+      // Safety valve: if the event never fires (channel closing) do not hang.
+      setTimeout(done, 4000);
+    });
+  }
+
+  get bulkReady(): boolean {
+    return this.bulk.readyState === "open";
+  }
+
+  get bufferedAmount(): number {
+    return this.bulk.bufferedAmount;
+  }
+
+  // ------------------------------------------------------------- data
+
   sendData(msg: DataMessage): boolean {
     if (this.channel.readyState !== "open") return false;
     try {
@@ -348,11 +426,14 @@ export class PeerLink {
     this.pc.onconnectionstatechange = null;
     this.pc.oniceconnectionstatechange = null;
     this.channel.onmessage = null;
+    this.bulk.onmessage = null;
 
-    try {
-      this.channel.close();
-    } catch {
-      /* already closed */
+    for (const ch of [this.channel, this.bulk]) {
+      try {
+        ch.close();
+      } catch {
+        /* already closed */
+      }
     }
     for (const sender of this.senders.values()) {
       try {

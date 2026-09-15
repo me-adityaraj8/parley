@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { MessageSquare, Send, X, AlertCircle } from "lucide-react";
+import { AlertCircle, Copy, CornerUpLeft, MessageSquare, Send, SmilePlus, X } from "lucide-react";
 import type { ChatMessage } from "@/types";
 import { Input } from "@/components/ui/input";
 import { gsap, useGSAP } from "@/lib/gsap";
@@ -9,12 +9,15 @@ import { messageIn, panelIn, prefersReducedMotion } from "@/lib/animations";
 import { avatarStyle, initials } from "@/lib/room";
 import { cn } from "@/lib/utils";
 
+const QUICK_REACTIONS = ["👍", "❤️", "😂", "🎉"];
+
 interface ChatPanelProps {
   open: boolean;
   messages: ChatMessage[];
   typingPeers: string[];
-  onSend: (body: string) => void;
+  onSend: (body: string, replyTo?: string) => void;
   onTyping: (on: boolean) => void;
+  onReact: (messageId: string, emoji: string) => void;
   onClose: () => void;
 }
 
@@ -24,11 +27,13 @@ export function ChatPanel({
   typingPeers,
   onSend,
   onTyping,
+  onReact,
   onClose,
 }: ChatPanelProps) {
   const root = useRef<HTMLElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const [draft, setDraft] = useState("");
+  const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
   const seen = useRef(new Set<string>());
 
   useGSAP(
@@ -60,8 +65,9 @@ export function ChatPanel({
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!draft.trim()) return;
-    onSend(draft);
+    onSend(draft, replyTo?.id);
     setDraft("");
+    setReplyTo(null);
     onTyping(false);
   };
 
@@ -95,17 +101,25 @@ export function ChatPanel({
         {messages.length === 0 ? (
           <EmptyState />
         ) : (
-          messages.map((m, i) => (
-            <Bubble
-              key={m.id}
-              message={m}
-              grouped={
-                i > 0 &&
-                messages[i - 1]?.authorId === m.authorId &&
-                m.at - (messages[i - 1]?.at ?? 0) < 60_000
-              }
-            />
-          ))
+          messages.map((m, i) =>
+            m.system ? (
+              <SystemNotice key={m.id} message={m} />
+            ) : (
+              <Bubble
+                key={m.id}
+                message={m}
+                repliedTo={m.replyTo ? messages.find((x) => x.id === m.replyTo) : undefined}
+                grouped={
+                  i > 0 &&
+                  !messages[i - 1]?.system &&
+                  messages[i - 1]?.authorId === m.authorId &&
+                  m.at - (messages[i - 1]?.at ?? 0) < 60_000
+                }
+                onReact={onReact}
+                onReply={() => setReplyTo(m)}
+              />
+            ),
+          )
         )}
       </div>
 
@@ -115,6 +129,25 @@ export function ChatPanel({
             ? `${typingPeers[0]} is typing…`
             : `${typingPeers.length} people are typing…`}
         </p>
+      )}
+
+      {replyTo && (
+        <div className="flex items-center gap-2 border-t border-hairline px-3 py-2">
+          <CornerUpLeft className="size-3 shrink-0 text-violet" aria-hidden />
+          <p className="min-w-0 flex-1 truncate text-[11px] text-muted-foreground">
+            Replying to <span className="text-foreground">{replyTo.mine ? "yourself" : replyTo.authorName}</span>
+            {" — "}
+            {replyTo.body}
+          </p>
+          <button
+            type="button"
+            onClick={() => setReplyTo(null)}
+            aria-label="Cancel reply"
+            className="flex size-5 shrink-0 items-center justify-center rounded-full hover:bg-white/10"
+          >
+            <X className="size-3" aria-hidden />
+          </button>
+        </div>
       )}
 
       <form
@@ -155,11 +188,39 @@ export function ChatPanel({
   );
 }
 
-function Bubble({ message, grouped }: { message: ChatMessage; grouped: boolean }) {
+function SystemNotice({ message }: { message: ChatMessage }) {
+  return (
+    <p
+      data-msg={message.id}
+      className="mx-auto w-fit rounded-full bg-white/5 px-3 py-1 text-center text-[11px] text-muted-foreground"
+    >
+      {message.body}
+    </p>
+  );
+}
+
+function Bubble({
+  message,
+  grouped,
+  repliedTo,
+  onReact,
+  onReply,
+}: {
+  message: ChatMessage;
+  grouped: boolean;
+  repliedTo?: ChatMessage;
+  onReact: (id: string, emoji: string) => void;
+  onReply: () => void;
+}) {
+  const [picker, setPicker] = useState(false);
   const time = new Date(message.at).toLocaleTimeString([], {
     hour: "2-digit",
     minute: "2-digit",
   });
+
+  const copy = () => {
+    void navigator.clipboard.writeText(message.body).catch(() => {});
+  };
 
   return (
     <div
@@ -178,24 +239,98 @@ function Bubble({ message, grouped }: { message: ChatMessage; grouped: boolean }
         !message.mine && <span className="size-7 shrink-0" aria-hidden />
       )}
 
-      <div className={cn("max-w-[78%]", message.mine && "text-right")}>
+      <div className={cn("group/msg relative max-w-[78%]", message.mine && "text-right")}>
         {!grouped && (
           <p className="mb-1 text-[11px] text-muted-foreground">
             {message.mine ? "You" : message.authorName}
             <span className="ml-1.5 opacity-60">{time}</span>
           </p>
         )}
+        {repliedTo && (
+          <div className="mb-1 truncate rounded-lg border-l-2 border-violet/60 bg-white/5 px-2 py-1 text-left text-[11px] text-muted-foreground">
+            {repliedTo.authorName}: {repliedTo.body}
+          </div>
+        )}
+
         <div
           className={cn(
             "inline-block rounded-2xl px-3 py-2 text-sm break-words text-left",
             message.mine
-              ? "bg-violet/90 text-white rounded-br-md"
-              : "bg-white/8 rounded-bl-md",
+              ? "rounded-br-md bg-violet/90 text-white"
+              : "rounded-bl-md bg-white/8",
             message.failed && "opacity-60 ring-1 ring-danger/50",
           )}
         >
           {message.body}
         </div>
+
+        {/* Hover actions — kept out of the way until the message is targeted. */}
+        <div
+          className={cn(
+            "absolute top-0 flex gap-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover/msg:opacity-100",
+            message.mine ? "left-0 -translate-x-full pr-1" : "right-0 translate-x-full pl-1",
+          )}
+        >
+          <button
+            type="button"
+            onClick={() => setPicker((p) => !p)}
+            aria-label="React to message"
+            className="flex size-6 items-center justify-center rounded-full bg-white/10 hover:bg-white/20"
+          >
+            <SmilePlus className="size-3" aria-hidden />
+          </button>
+          <button
+            type="button"
+            onClick={onReply}
+            aria-label="Reply to message"
+            className="flex size-6 items-center justify-center rounded-full bg-white/10 hover:bg-white/20"
+          >
+            <CornerUpLeft className="size-3" aria-hidden />
+          </button>
+          <button
+            type="button"
+            onClick={copy}
+            aria-label="Copy message"
+            className="flex size-6 items-center justify-center rounded-full bg-white/10 hover:bg-white/20"
+          >
+            <Copy className="size-3" aria-hidden />
+          </button>
+        </div>
+
+        {picker && (
+          <div className="glass-strong mt-1 inline-flex gap-0.5 rounded-full p-1">
+            {QUICK_REACTIONS.map((emoji) => (
+              <button
+                key={emoji}
+                type="button"
+                onClick={() => {
+                  onReact(message.id, emoji);
+                  setPicker(false);
+                }}
+                aria-label={`React ${emoji}`}
+                className="flex size-6 items-center justify-center rounded-full text-sm transition-transform hover:scale-125"
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {message.reactions && Object.keys(message.reactions).length > 0 && (
+          <div className={cn("mt-1 flex flex-wrap gap-1", message.mine && "justify-end")}>
+            {Object.entries(message.reactions).map(([emoji, peers]) => (
+              <button
+                key={emoji}
+                type="button"
+                onClick={() => onReact(message.id, emoji)}
+                className="flex items-center gap-1 rounded-full bg-white/10 px-1.5 py-0.5 text-[11px] transition-colors hover:bg-white/20"
+              >
+                <span>{emoji}</span>
+                <span className="tabular-nums text-muted-foreground">{peers.length}</span>
+              </button>
+            ))}
+          </div>
+        )}
         {message.failed && (
           <p className="mt-1 flex items-center justify-end gap-1 text-[11px] text-danger">
             <AlertCircle className="size-3" aria-hidden />

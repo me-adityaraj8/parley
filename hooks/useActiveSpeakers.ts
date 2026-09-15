@@ -21,14 +21,27 @@ interface SpeakerSource {
  * loop across every peer. Browsers cap AudioContexts per page (typically ~6),
  * so creating one per participant would break a full room outright.
  */
-export function useActiveSpeakers(sources: SpeakerSource[]): Record<PeerId, boolean> {
-  const [speaking, setSpeaking] = useState<Record<PeerId, boolean>>({});
+export interface SpeakerSignal {
+  speaking: boolean;
+  /** 0-1 smoothed RMS — drives the animated mic ring, not just on/off. */
+  level: number;
+}
+
+export function useActiveSpeakers(sources: SpeakerSource[]): Record<PeerId, SpeakerSignal> {
+  const [signals, setSignals] = useState<Record<PeerId, SpeakerSignal>>({});
 
   const ctxRef = useRef<AudioContext | null>(null);
   const nodesRef = useRef(
     new Map<
       PeerId,
-      { src: MediaStreamAudioSourceNode; analyser: AnalyserNode; buf: Float32Array<ArrayBuffer>; quiet: number; on: boolean }
+      {
+        src: MediaStreamAudioSourceNode;
+        analyser: AnalyserNode;
+        buf: Float32Array<ArrayBuffer>;
+        quiet: number;
+        on: boolean;
+        level: number;
+      }
     >(),
   );
   const rafRef = useRef<number | null>(null);
@@ -43,7 +56,7 @@ export function useActiveSpeakers(sources: SpeakerSource[]): Record<PeerId, bool
     );
 
     if (withAudio.length === 0) {
-      setSpeaking({});
+      setSignals({});
       return;
     }
 
@@ -75,6 +88,7 @@ export function useActiveSpeakers(sources: SpeakerSource[]): Record<PeerId, bool
           buf: new Float32Array(new ArrayBuffer(analyser.fftSize * 4)),
           quiet: 0,
           on: false,
+          level: 0,
         });
       } catch {
         /* stream ended between render and now */
@@ -93,9 +107,11 @@ export function useActiveSpeakers(sources: SpeakerSource[]): Record<PeerId, bool
     const ON = 0.045;
     const OFF = 0.028;
 
+    let lastPush = 0;
+
     const tick = () => {
       let changed = false;
-      const next: Record<PeerId, boolean> = {};
+      const next: Record<PeerId, SpeakerSignal> = {};
 
       for (const [id, node] of nodes) {
         node.analyser.getFloatTimeDomainData(node.buf);
@@ -118,11 +134,19 @@ export function useActiveSpeakers(sources: SpeakerSource[]): Record<PeerId, bool
             changed = true;
           }
         }
-        next[id] = node.on;
+        // Smooth the level so the ring breathes instead of jittering.
+        node.level = node.level * 0.75 + Math.min(1, rms * 6) * 0.25;
+        next[id] = { speaking: node.on, level: node.level };
       }
 
-      // Only re-render when a boolean actually flips, not every frame.
-      if (changed) setSpeaking(next);
+      // Push immediately on a speaking flip; otherwise throttle level updates
+      // to ~12/s. Writing every frame would re-render the whole grid at 60Hz
+      // while video is decoding.
+      const now = performance.now();
+      if (changed || now - lastPush > 80) {
+        lastPush = now;
+        setSignals(next);
+      }
       rafRef.current = requestAnimationFrame(tick);
     };
 
@@ -149,5 +173,5 @@ export function useActiveSpeakers(sources: SpeakerSource[]): Record<PeerId, bool
     };
   }, []);
 
-  return speaking;
+  return signals;
 }

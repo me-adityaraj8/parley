@@ -10,68 +10,89 @@ import { cn } from "@/lib/utils";
 interface VideoGridProps {
   participants: Participant[];
   localId: string | null;
-  /** When someone shares, their tile becomes the stage and others shrink. */
+  /** A participant sharing their screen, or one the user spotlighted. */
   stageId: string | null;
+  onSpotlight: (id: string | null) => void;
+  onVolume: (id: string, volume: number) => void;
 }
 
 /**
- * Adaptive grid.
+ * Adaptive layout.
  *
- * Tailwind cannot generate classes from runtime values, so the column count
- * is chosen from a fixed lookup rather than interpolated — this keeps every
- * class present in the compiled CSS.
+ * Tailwind cannot generate classes from runtime values, so column counts come
+ * from a fixed lookup — every class is present in the compiled CSS.
+ *
+ *   1 → fullscreen        2 → 50/50
+ *   3 → cinematic         4 → 2×2
+ *   5-6 → adaptive grid
  */
 function gridClass(count: number): string {
   if (count <= 1) return "grid-cols-1";
   if (count === 2) return "grid-cols-1 sm:grid-cols-2";
-  if (count <= 4) return "grid-cols-1 sm:grid-cols-2";
-  if (count <= 6) return "grid-cols-2 lg:grid-cols-3";
-  return "grid-cols-2 lg:grid-cols-3 xl:grid-cols-4";
+  if (count === 3) return "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3";
+  if (count === 4) return "grid-cols-1 sm:grid-cols-2";
+  return "grid-cols-2 lg:grid-cols-3";
 }
 
-export function VideoGrid({ participants, localId, stageId }: VideoGridProps) {
+export function VideoGrid({
+  participants,
+  localId,
+  stageId,
+  onSpotlight,
+  onVolume,
+}: VideoGridProps) {
   const root = useRef<HTMLDivElement>(null);
   const previousIds = useRef<string[]>([]);
+  const flipState = useRef<Flip.FlipState | null>(null);
 
-  const stage = stageId
-    ? participants.find((p) => p.id === stageId) ?? null
-    : null;
+  const stage = stageId ? (participants.find((p) => p.id === stageId) ?? null) : null;
   const others = stage ? participants.filter((p) => p.id !== stage.id) : participants;
+  const layoutKey = `${stageId ?? "grid"}:${participants.map((p) => p.id).join(",")}`;
 
   /**
-   * FLIP animation on roster change.
+   * FLIP.
    *
-   * When a participant joins, the grid re-flows and every existing tile
-   * jumps to a new position. Flip records each tile's geometry BEFORE the
-   * re-render, then animates from the old box to the new one — so tiles
-   * glide into their new layout instead of teleporting.
+   * Capture geometry BEFORE React commits the new layout, then animate each
+   * tile from its old box to its new one. Without this, entering spotlight or
+   * a participant joining makes every tile teleport.
+   *
+   * useLayoutEffect timing is what makes the capture correct — it runs after
+   * render but before paint, so we still see the previous frame's boxes.
    */
+  useEffect(() => {
+    if (prefersReducedMotion() || !root.current) return;
+    const tiles = root.current.querySelectorAll<HTMLElement>("[data-tile]");
+    if (tiles.length === 0) return;
+    flipState.current = Flip.getState(tiles);
+  }, [layoutKey]);
+
   useGSAP(
     () => {
       const ids = participants.map((p) => p.id);
       const prev = previousIds.current;
       previousIds.current = ids;
 
+      if (prefersReducedMotion() || !root.current) return;
+
       const added = ids.filter((id) => !prev.includes(id));
-      if (prev.length === 0 || prefersReducedMotion()) return;
+      const state = flipState.current;
 
-      const tiles = gsap.utils.toArray<HTMLElement>("[data-tile]");
-      if (tiles.length === 0) return;
+      if (state && prev.length > 0) {
+        Flip.from(state, {
+          duration: 0.55,
+          ease: "power3.out",
+          absolute: true,
+          nested: true,
+          onEnter: (els) =>
+            gsap.fromTo(
+              els,
+              { opacity: 0, scale: 0.86 },
+              { opacity: 1, scale: 1, duration: 0.45, ease: "back.out(1.6)" },
+            ),
+          onLeave: (els) => gsap.to(els, { opacity: 0, scale: 0.9, duration: 0.3 }),
+        });
+      }
 
-      // Existing tiles glide to their new slots...
-      Flip.from(Flip.getState(tiles), {
-        duration: 0.55,
-        ease: "power3.out",
-        absolute: true,
-        onEnter: (els) =>
-          gsap.fromTo(
-            els,
-            { opacity: 0, scale: 0.86 },
-            { opacity: 1, scale: 1, duration: 0.45, ease: "back.out(1.6)" },
-          ),
-      });
-
-      // ...and brand-new tiles pop in.
       if (added.length > 0) {
         const newTiles = added
           .map((id) => root.current?.querySelector<HTMLElement>(`[data-tile="${id}"]`))
@@ -82,14 +103,21 @@ export function VideoGrid({ participants, localId, stageId }: VideoGridProps) {
           { opacity: 1, scale: 1, y: 0, duration: 0.5, ease: "back.out(1.6)" },
         );
       }
+
+      // Raised hands get a small bounce so the change is noticed.
+      gsap.fromTo(
+        "[data-hand]",
+        { scale: 0.4, opacity: 0 },
+        { scale: 1, opacity: 1, duration: 0.4, ease: "back.out(2.4)" },
+      );
     },
-    { scope: root, dependencies: [participants.map((p) => p.id).join(",")] },
+    { scope: root, dependencies: [layoutKey] },
   );
 
-  // Keep the ref in sync when reduced motion skips the animation path.
-  useEffect(() => {
-    previousIds.current = participants.map((p) => p.id);
-  }, [participants]);
+  const tileProps = {
+    onSpotlight,
+    onVolume,
+  };
 
   if (stage) {
     return (
@@ -97,7 +125,9 @@ export function VideoGrid({ participants, localId, stageId }: VideoGridProps) {
         <VideoTile
           participant={stage}
           isLocal={stage.id === localId}
+          spotlighted
           className="min-h-0 flex-1"
+          {...tileProps}
         />
         {others.length > 0 && (
           <div className="flex shrink-0 gap-3 overflow-x-auto lg:w-56 lg:flex-col lg:overflow-y-auto">
@@ -108,6 +138,7 @@ export function VideoGrid({ participants, localId, stageId }: VideoGridProps) {
                 isLocal={p.id === localId}
                 compact
                 className="aspect-video w-40 shrink-0 lg:w-full"
+                {...tileProps}
               />
             ))}
           </div>
@@ -126,13 +157,13 @@ export function VideoGrid({ participants, localId, stageId }: VideoGridProps) {
     >
       {participants.map((p) => (
         // Each cell centres a 16:9 tile rather than letting video fill and
-        // crop. Cropping a call participant out of frame is worse than
-        // showing letterbox bars.
+        // crop. Cropping a participant out of frame is worse than letterbox.
         <div key={p.id} className="flex min-h-0 items-center justify-center">
           <VideoTile
             participant={p}
             isLocal={p.id === localId}
             className="aspect-video max-h-full w-full"
+            {...tileProps}
           />
         </div>
       ))}

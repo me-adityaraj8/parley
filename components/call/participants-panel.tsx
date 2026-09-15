@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef } from "react";
-import { Mic, MicOff, MonitorUp, Users, Video, VideoOff, X } from "lucide-react";
+import { Hand, Maximize2, Mic, MicOff, MonitorUp, Users, Video, VideoOff, X } from "lucide-react";
 import type { LinkState, Participant } from "@/types";
 import { useGSAP } from "@/lib/gsap";
 import { panelIn, staggerUp } from "@/lib/animations";
@@ -11,12 +11,18 @@ import { cn } from "@/lib/utils";
 interface ParticipantsPanelProps {
   open: boolean;
   participants: Participant[];
+  spotlightId: string | null;
+  onSpotlight: (id: string | null) => void;
+  onVolume: (id: string, volume: number) => void;
   onClose: () => void;
 }
 
 export function ParticipantsPanel({
   open,
   participants,
+  spotlightId,
+  onSpotlight,
+  onVolume,
   onClose,
 }: ParticipantsPanelProps) {
   const root = useRef<HTMLElement>(null);
@@ -56,8 +62,20 @@ export function ParticipantsPanel({
         </button>
       </header>
 
+      {participants.some((p) => p.handRaised) && (
+        <div className="border-b border-hairline px-4 py-2">
+          <p className="flex items-center gap-1.5 text-[11px] text-warn">
+            <Hand className="size-3" aria-hidden />
+            {participants.filter((p) => p.handRaised).length} hand
+            {participants.filter((p) => p.handRaised).length === 1 ? "" : "s"} raised
+          </p>
+        </div>
+      )}
+
       <ul className="flex-1 space-y-1 overflow-y-auto p-2">
-        {participants.map((p) => (
+        {[...participants]
+          .sort((a, b) => Number(b.handRaised) - Number(a.handRaised))
+          .map((p) => (
           <li
             key={p.id}
             data-row
@@ -85,6 +103,7 @@ export function ParticipantsPanel({
             </div>
 
             <div className="flex items-center gap-1.5 text-muted-foreground">
+              {p.handRaised && <Hand className="size-4 text-warn" aria-label="Hand raised" />}
               {p.media.screen && (
                 <MonitorUp className="size-4 text-live" aria-label="Sharing screen" />
               )}
@@ -98,10 +117,53 @@ export function ParticipantsPanel({
               ) : (
                 <VideoOff className="size-4 text-danger" aria-label="Camera off" />
               )}
+              <button
+                type="button"
+                onClick={() => onSpotlight(spotlightId === p.id ? null : p.id)}
+                aria-label={spotlightId === p.id ? `Remove spotlight from ${p.name}` : `Spotlight ${p.name}`}
+                className={cn(
+                  "flex size-6 items-center justify-center rounded-full transition-colors",
+                  spotlightId === p.id ? "bg-violet text-white" : "hover:bg-white/10",
+                )}
+              >
+                <Maximize2 className="size-3" aria-hidden />
+              </button>
             </div>
           </li>
         ))}
       </ul>
+
+      <div className="border-t border-hairline p-3">
+        <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+          Playback volume
+        </p>
+        <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground/70">
+          Adjusting a participant&rsquo;s volume changes only what you hear. It
+          does not mute them for anyone else.
+        </p>
+        <div className="mt-2 space-y-2">
+          {participants
+            .filter((p) => !p.isLocal)
+            .map((p) => (
+              <div key={p.id} className="flex items-center gap-2">
+                <span className="w-20 truncate text-[11px]">{p.name}</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  value={p.volume}
+                  onChange={(e) => onVolume(p.id, Number(e.target.value))}
+                  aria-label={`Volume for ${p.name}`}
+                  className="flex-1 accent-violet"
+                />
+              </div>
+            ))}
+          {participants.filter((p) => !p.isLocal).length === 0 && (
+            <p className="text-[11px] text-muted-foreground">No one else here yet.</p>
+          )}
+        </div>
+      </div>
     </aside>
   );
 }

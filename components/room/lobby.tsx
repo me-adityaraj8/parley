@@ -1,16 +1,22 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import {
   AlertTriangle,
   ArrowRight,
+  Camera,
   Mic,
   MicOff,
   RefreshCw,
-  Settings2,
+  Signal,
   Video,
   VideoOff,
+  Volume2,
+  Waves,
 } from "lucide-react";
+import { useNetworkProbe } from "@/hooks/useNetworkProbe";
+import { useSpeakerTest } from "@/hooks/useSpeakerTest";
+import { canSelectSpeaker } from "@/lib/media/devices";
 import type {
   DeviceInventory,
   DeviceSelection,
@@ -57,7 +63,15 @@ interface LobbyProps {
 export function Lobby(props: LobbyProps) {
   const root = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [showSettings, setShowSettings] = useState(false);
+  const network = useNetworkProbe();
+  const speaker = useSpeakerTest(props.selection.audioOutput);
+  const speakerSupported = canSelectSpeaker();
+
+  // Probe connectivity once, as soon as the lab opens.
+  useEffect(() => {
+    void network.run();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useGSAP(
     () => {
@@ -205,39 +219,109 @@ export function Lobby(props: LobbyProps) {
             onClick={props.onToggleVideo}
             label={props.flags.video ? "Turn camera off" : "Turn camera on"}
           >
-            {props.flags.video ? (
-              <Video className="size-4" />
-            ) : (
-              <VideoOff className="size-4" />
-            )}
+            {props.flags.video ? <Video className="size-4" /> : <VideoOff className="size-4" />}
           </ToggleButton>
-          <button
-            type="button"
-            onClick={() => setShowSettings((s) => !s)}
-            aria-expanded={showSettings}
-            aria-label="Device settings"
-            className="flex size-10 items-center justify-center rounded-full bg-white/5 transition-colors hover:bg-white/10"
-          >
-            <Settings2 className="size-4" aria-hidden />
-          </button>
         </div>
 
-        {showSettings && (
-          <div data-lobby-item className="space-y-3">
-            <DeviceSelect
-              label="Microphone"
-              options={props.devices.audioInputs}
-              value={props.selection.audioInput}
-              onChange={(id) => props.onSelectDevice("audioInput", id)}
-            />
+        {/* ------------------------------------------------- device lab */}
+        <div data-lobby-item className="space-y-3 rounded-2xl border border-hairline bg-white/[0.03] p-3">
+          <LabRow icon={<Camera className="size-3.5" />} label="Camera">
             <DeviceSelect
               label="Camera"
+              hideLabel
               options={props.devices.videoInputs}
               value={props.selection.videoInput}
               onChange={(id) => props.onSelectDevice("videoInput", id)}
             />
-          </div>
-        )}
+          </LabRow>
+
+          <LabRow icon={<Waves className="size-3.5" />} label="Microphone">
+            <DeviceSelect
+              label="Microphone"
+              hideLabel
+              options={props.devices.audioInputs}
+              value={props.selection.audioInput}
+              onChange={(id) => props.onSelectDevice("audioInput", id)}
+            />
+            <div className="mt-1.5 flex items-center gap-2">
+              <div
+                className="h-1 flex-1 overflow-hidden rounded-full bg-white/10"
+                role="meter"
+                aria-label="Microphone input level"
+                aria-valuenow={Math.round(props.level * 100)}
+                aria-valuemin={0}
+                aria-valuemax={100}
+              >
+                <div
+                  className="h-full rounded-full bg-live transition-[width] duration-75"
+                  style={{ width: `${Math.min(100, props.level * 100)}%` }}
+                />
+              </div>
+              <span className="w-16 shrink-0 text-right text-[10px] text-muted-foreground">
+                {props.level > 0.02 ? "Hearing you" : "Say something"}
+              </span>
+            </div>
+          </LabRow>
+
+          <LabRow icon={<Volume2 className="size-3.5" />} label="Speaker">
+            {speakerSupported ? (
+              <DeviceSelect
+                label="Speaker"
+                hideLabel
+                options={props.devices.audioOutputs}
+                value={props.selection.audioOutput}
+                onChange={(id) => props.onSelectDevice("audioOutput", id)}
+              />
+            ) : (
+              <p className="text-[10px] text-muted-foreground">
+                This browser does not allow choosing an output device.
+              </p>
+            )}
+            <button
+              type="button"
+              onClick={() => void speaker.play()}
+              className={cn(
+                "mt-1.5 rounded-full px-3 py-1 text-[11px] transition-colors",
+                speaker.playing ? "bg-live/20 text-live" : "bg-white/10 hover:bg-white/20",
+              )}
+            >
+              {speaker.playing ? "Playing…" : "Play test sound"}
+            </button>
+          </LabRow>
+
+          <LabRow icon={<Signal className="size-3.5" />} label="Network">
+            <div className="flex items-center gap-2">
+              <span
+                className={cn(
+                  "size-1.5 shrink-0 rounded-full",
+                  network.result.grade === "direct" && "bg-live",
+                  network.result.grade === "relay" && "bg-warn",
+                  network.result.grade === "blocked" && "bg-warn",
+                  network.result.grade === "error" && "bg-danger",
+                  network.result.grade === "testing" && "animate-pulse bg-violet",
+                  network.result.grade === "idle" && "bg-muted-foreground",
+                )}
+                aria-hidden
+              />
+              <span className="text-[11px]">{network.result.label}</span>
+              {network.result.stunMs > 0 && (
+                <span className="font-mono text-[10px] text-muted-foreground">
+                  {network.result.stunMs} ms
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={() => void network.run()}
+                className="ml-auto rounded-full bg-white/10 px-2 py-0.5 text-[10px] transition-colors hover:bg-white/20"
+              >
+                Retest
+              </button>
+            </div>
+            <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
+              {network.result.detail}
+            </p>
+          </LabRow>
+        </div>
 
         <Button
           data-lobby-item
@@ -299,13 +383,35 @@ function ToggleButton({
   );
 }
 
+function LabRow({
+  icon,
+  label,
+  children,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <p className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+        {icon}
+        {label}
+      </p>
+      <div className="mt-1.5">{children}</div>
+    </div>
+  );
+}
+
 function DeviceSelect({
   label,
+  hideLabel,
   options,
   value,
   onChange,
 }: {
   label: string;
+  hideLabel?: boolean;
   options: { deviceId: string; label: string }[];
   value: string | null;
   onChange: (id: string) => void;
@@ -313,7 +419,7 @@ function DeviceSelect({
   const id = `device-${label.toLowerCase()}`;
   return (
     <div>
-      <label htmlFor={id} className="text-xs text-muted-foreground">
+      <label htmlFor={id} className={cn("text-xs text-muted-foreground", hideLabel && "sr-only")}>
         {label}
       </label>
       <select
@@ -321,7 +427,7 @@ function DeviceSelect({
         value={value ?? options[0]?.deviceId ?? ""}
         onChange={(e) => onChange(e.target.value)}
         disabled={options.length === 0}
-        className="mt-1 w-full rounded-xl border border-hairline bg-surface px-3 py-2 text-xs outline-none focus-visible:ring-2 focus-visible:ring-violet"
+        className="w-full rounded-lg border border-hairline bg-surface px-2.5 py-1.5 text-[11px] outline-none focus-visible:ring-2 focus-visible:ring-violet"
       >
         {options.length === 0 ? (
           <option>No devices found</option>

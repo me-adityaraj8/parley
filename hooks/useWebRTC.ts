@@ -21,6 +21,10 @@ interface UseWebRTCOptions {
   /** False until the user leaves the lobby and commits to joining. */
   enabled: boolean;
   onData?: (from: PeerId, name: string, msg: DataMessage) => void;
+  /** Raw bulk frames (file chunks), tagged with the sender. */
+  onBulk?: (from: PeerId, frame: ArrayBuffer) => void;
+  /** Fired when a peer joins or leaves, for system chat notices. */
+  onPresence?: (event: "join" | "leave", name: string, id: PeerId) => void;
 }
 
 interface RemotePeerView {
@@ -29,6 +33,7 @@ interface RemotePeerView {
   media: MediaFlags;
   link: LinkState;
   stream: MediaStream | null;
+  handRaised: boolean;
 }
 
 /**
@@ -55,16 +60,24 @@ export function useWebRTC({
   localFlags,
   enabled,
   onData,
+  onBulk,
+  onPresence,
 }: UseWebRTCOptions) {
   const [peers, setPeers] = useState<Record<PeerId, RemotePeerView>>({});
   const [roomFull, setRoomFull] = useState(false);
 
   const linksRef = useRef(new Map<PeerId, PeerLink>());
+  /** Mirror of `peers` for reads inside long-lived callbacks. */
+  const peersRef = useRef<Record<PeerId, RemotePeerView>>({});
   const selfIdRef = useRef<PeerId | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const onDataRef = useRef(onData);
+  const onBulkRef = useRef(onBulk);
+  const onPresenceRef = useRef(onPresence);
   const sendRef = useRef<((msg: never) => void) | null>(null);
   onDataRef.current = onData;
+  onBulkRef.current = onBulk;
+  onPresenceRef.current = onPresence;
   localStreamRef.current = localStream;
 
   // ------------------------------------------------------------ mutations
@@ -73,7 +86,9 @@ export function useWebRTC({
     setPeers((prev) => {
       const existing = prev[id];
       if (!existing) return prev;
-      return { ...prev, [id]: { ...existing, ...patch } };
+      const next = { ...prev, [id]: { ...existing, ...patch } };
+      peersRef.current = next;
+      return next;
     });
   }, []);
 
@@ -105,6 +120,7 @@ export function useWebRTC({
         },
         onStream: (stream) => patchPeer(entry.id, { stream }),
         onState: (state) => patchPeer(entry.id, { link: state }),
+        onBulk: (frame) => onBulkRef.current?.(entry.id, frame),
         onData: (msg) => {
           // Media flags and identity arrive over the data channel as well as
           // via signaling — the peer-to-peer path is faster and keeps working
@@ -115,6 +131,10 @@ export function useWebRTC({
           }
           if (msg.t === "identity") {
             patchPeer(entry.id, { name: msg.name });
+            return;
+          }
+          if (msg.t === "hand") {
+            patchPeer(entry.id, { handRaised: msg.up });
             return;
           }
           onDataRef.current?.(entry.id, entry.name, msg);
@@ -130,6 +150,7 @@ export function useWebRTC({
           media: entry.media,
           link: "new",
           stream: null,
+          handRaised: false,
         },
       }));
 
@@ -170,10 +191,12 @@ export function useWebRTC({
 
         case "peer-join": {
           ensureLink(msg.peer);
+          onPresenceRef.current?.("join", msg.peer.name, msg.peer.id);
           return;
         }
 
         case "peer-leave": {
+          onPresenceRef.current?.("leave", peersRef.current[msg.id]?.name ?? "Someone", msg.id);
           dropPeer(msg.id);
           return;
         }
@@ -267,6 +290,32 @@ export function useWebRTC({
     );
   }, []);
 
+  /** Sends one binary frame to a specific peer over the bulk channel. */
+  const sendBulkTo = useCallback(
+    (peerId: PeerId, frame: ArrayBuffer): Promise<boolean> => {
+      const link = linksRef.current.get(peerId);
+      if (!link) return Promise.resolve(false);
+      return link.sendBulk(frame);
+    },
+    [],
+  );
+
+  /** Sends one message to a specific peer over the control channel. */
+  const sendTo = useCallback((peerId: PeerId, msg: DataMessage): boolean => {
+    return linksRef.current.get(peerId)?.sendData(msg) ?? false;
+  }, []);
+
+  /** Live RTCPeerConnection handles, for getStats(). Never in React state. */
+  const getConnections = useCallback(
+    (): { id: PeerId; name: string; pc: RTCPeerConnection }[] =>
+      Array.from(linksRef.current.entries()).map(([id, link]) => ({
+        id,
+        name: peersRef.current[id]?.name ?? "Peer",
+        pc: link.connection,
+      })),
+    [],
+  );
+
   /** Sends a data-channel message to every connected peer. */
   const broadcast = useCallback((msg: DataMessage): number => {
     let delivered = 0;
@@ -286,6 +335,9 @@ export function useWebRTC({
         media: p.media,
         link: p.link,
         speaking: false,
+        level: 0,
+        handRaised: p.handRaised,
+        volume: 1,
       })),
     [peers],
   );
@@ -296,6 +348,9 @@ export function useWebRTC({
     participants,
     roomFull,
     broadcast,
+    sendTo,
+    sendBulkTo,
+    getConnections,
     replaceVideoTrack,
     send: signaling.send,
   };

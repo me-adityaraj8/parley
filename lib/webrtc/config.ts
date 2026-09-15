@@ -47,3 +47,7 @@ export function peerConfig(): RTCConfiguration {
 /** The data channel is negotiated out-of-band with a fixed id (see peer.ts). */
 export const DATA_CHANNEL_ID = 0;
 export const DATA_CHANNEL_LABEL = "parley";
+
+/** Bulk channel: file chunks and whiteboard strokes. See types/room.ts. */
+export const BULK_CHANNEL_ID = 1;
+export const BULK_CHANNEL_LABEL = "parley-bulk";

@@ -76,7 +76,7 @@ async function joinAs(browser, name) {
   page.on("pageerror", (e) => errors.push(e.message));
   page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
 
-  await page.goto(`${BASE}/r/${roomId}`, { waitUntil: "networkidle0", timeout: 30000 });
+  await page.goto(`${BASE}/r/${roomId}`, { waitUntil: "domcontentloaded", timeout: 45000 });
   await page.waitForSelector("#display-name", { timeout: 15000 });
   await page.click("#display-name");
   await page.type("#display-name", name);

@@ -15,7 +15,8 @@ console.log("prefers-reduced-motion: reduce");
 const p = await br.newPage();
 await p.setViewport({width:1440,height:900});
 await p.emulateMediaFeatures([{name:"prefers-reduced-motion",value:"reduce"}]);
-await p.goto(BASE,{waitUntil:"networkidle0"});
+await p.goto(BASE,{waitUntil:"domcontentloaded",timeout:45000});
+await p.waitForSelector("h1",{timeout:30000});
 await p.evaluate(()=>document.fonts.ready);
 await new Promise(r=>setTimeout(r,1500));
 

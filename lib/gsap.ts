@@ -19,13 +19,23 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { SplitText } from "gsap/SplitText";
 import { Flip } from "gsap/Flip";
 import { Observer } from "gsap/Observer";
+import { MotionPathPlugin } from "gsap/MotionPathPlugin";
+import { DrawSVGPlugin } from "gsap/DrawSVGPlugin";
 
 const isBrowser = typeof window !== "undefined";
 
 if (isBrowser) {
   // useGSAP is registered as a plugin so GSAP knows about React's lifecycle
   // and can scope/revert animations automatically on unmount.
-  gsap.registerPlugin(useGSAP, ScrollTrigger, SplitText, Flip, Observer);
+  gsap.registerPlugin(
+    useGSAP,
+    ScrollTrigger,
+    SplitText,
+    Flip,
+    Observer,
+    MotionPathPlugin,
+    DrawSVGPlugin,
+  );
 
   // One consistent motion signature across the entire product.
   // Changing these two lines re-tunes the feel of the whole app.
@@ -39,4 +49,13 @@ if (isBrowser) {
   ScrollTrigger.config({ ignoreMobileResize: true });
 }
 
-export { gsap, useGSAP, ScrollTrigger, SplitText, Flip, Observer };
+export {
+  gsap,
+  useGSAP,
+  ScrollTrigger,
+  SplitText,
+  Flip,
+  Observer,
+  MotionPathPlugin,
+  DrawSVGPlugin,
+};
