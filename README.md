@@ -1,10 +1,13 @@
 # Parley
 
+**[Live demo →](https://parley-me-adityaraj8s-projects.vercel.app)**
+
 **Peer-to-peer video calling in the browser.** Audio, video and chat travel
 directly between participants over WebRTC. The server introduces two browsers
 to each other and then stops being involved.
 
-Built with Next.js 15, TypeScript, Tailwind v4, ShadCN UI, GSAP and PartyKit.
+Built with Next.js 15, TypeScript, Tailwind v4, ShadCN UI, GSAP, and a
+Cloudflare Workers + Durable Objects signaling server.
 
 ---
 
@@ -27,7 +30,7 @@ is upload bandwidth, which is why rooms cap at six people.
 ┌──────────────────────────────────────────────────────────────────────┐
 │                          SETUP  (transient)                          │
 │                                                                      │
-│   Browser A                  PartyKit                   Browser B    │
+│   Browser A               Cloudflare Worker              Browser B    │
 │   ─────────                  ────────                   ─────────    │
 │       │  ──── join ────────────► │                          │        │
 │       │  ◄─── welcome ────────── │  ──── peer-join ───────► │        │
@@ -35,7 +38,7 @@ is upload bandwidth, which is why rooms cap at six people.
 │       │  ◄─── relay ──────────── │  ◄─── answer (SDP) ───── │        │
 │       │  ──── ICE candidates ──► │  ◄─── ICE candidates ─── │        │
 │                                                                      │
-│   PartyKit forwards small JSON messages. It never sees media.        │
+│   The Worker forwards small JSON messages. It never sees media.      │
 └──────────────────────────────────────────────────────────────────────┘
                                    │
                                    ▼
@@ -76,13 +79,19 @@ times, which is what bounds the room size — not CPU, but uplink.
                        ├── signaling/  typed PartySocket wrapper
                        ├── media/      getUserMedia, devices, errors
                        └── animations/ GSAP primitives
-  party/               PartyKit server (Cloudflare Workers runtime)
+  worker/              signaling server (Cloudflare Worker + Durable Object)
   types/               protocol contract shared by client AND server
 ```
 
 `types/signaling.ts` is imported by both the browser and the server, so a
 change to a message shape breaks both builds at once rather than failing
-silently at runtime.
+silently at runtime. It deliberately contains **no DOM types** — the Workers
+runtime has no DOM lib, so the protocol defines its own structural mirrors of
+`RTCSessionDescriptionInit` and `RTCIceCandidateInit`.
+
+> **Note on Vercel Deployment Protection.** Vercel enables it by default on
+> new projects, which forces every visitor to log into Vercel. For a public
+> demo it must be turned off (Project → Settings → Deployment Protection).
 
 ---
 
@@ -99,7 +108,7 @@ npm run dev
 | Process | Port | What it is |
 |---|---|---|
 | `dev:web` | 3100 | Next.js app |
-| `dev:party` | 1999 | PartyKit signaling server |
+| `dev:party` | 1999 | Signaling server (`wrangler dev`) |
 
 Open <http://localhost:3100>, create a room, and open the link in a second
 browser window to talk to yourself.
@@ -125,7 +134,7 @@ browser window to talk to yourself.
 
 | Variable | Required | Default | Purpose |
 |---|---|---|---|
-| `NEXT_PUBLIC_PARTYKIT_HOST` | yes | `127.0.0.1:1999` | Signaling host. In production, `parley.<username>.partykit.dev` |
+| `NEXT_PUBLIC_PARTYKIT_HOST` | yes | `127.0.0.1:1999` | Signaling host. In production, `parley-signaling.<subdomain>.workers.dev` |
 | `NEXT_PUBLIC_REPO_URL` | no | `https://github.com` | GitHub link in the navbar |
 | `NEXT_PUBLIC_TURN_URL` | no | — | TURN relay, e.g. `turn:host:3478` |
 | `NEXT_PUBLIC_TURN_USERNAME` | no | — | TURN username |
@@ -142,7 +151,7 @@ should issue short-lived credentials from a server route.
 **One command, once you are logged in:**
 
 ```bash
-npx partykit login     # interactive, once
+npx wrangler login     # interactive, once
 vercel login           # interactive, once
 npm run deploy         # deploys both, in the right order
 ```
@@ -156,14 +165,18 @@ matters: `NEXT_PUBLIC_*` variables are inlined into the client bundle at
 
 Two pieces deploy independently.
 
-### 1. Signaling server → PartyKit
+### 1. Signaling server → Cloudflare Workers
 
 ```bash
-npx partykit login
+npx wrangler login
 npm run deploy:party
 ```
 
-Note the deployed host it prints, e.g. `parley.yourname.partykit.dev`.
+Note the host it prints, e.g. `parley-signaling.yourname.workers.dev`.
+
+A brand-new `workers.dev` subdomain takes a few minutes for Cloudflare to
+issue its TLS certificate. Until then the host fails the TLS handshake — wait
+and retry rather than assuming the deploy failed.
 
 ### 2. App → Vercel
 
@@ -174,7 +187,7 @@ npx vercel
 Then set the environment variable in the Vercel dashboard:
 
 ```
-NEXT_PUBLIC_PARTYKIT_HOST=parley.yourname.partykit.dev
+NEXT_PUBLIC_PARTYKIT_HOST=parley-signaling.yourname.workers.dev
 ```
 
 Redeploy so the client picks it up. The signaling client upgrades to `wss://`

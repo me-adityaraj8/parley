@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 #
 # Deploys Parley in the correct order:
-#   1. signaling server  → PartyKit (Cloudflare)
+#   1. signaling server  → Cloudflare Workers + Durable Objects
 #   2. app               → Vercel, with the signaling host wired in
 #
 # The order matters: the app needs to know the signaling host at BUILD time,
 # because NEXT_PUBLIC_* variables are inlined into the client bundle.
 #
 # Prerequisites (interactive, run these yourself once):
-#   npx partykit login
+#   npx wrangler login
 #   vercel login
 
 set -euo pipefail
@@ -20,8 +20,8 @@ echo "────────────────────────�
 
 # `whoami` always prints a banner, so test for the failure string itself
 # rather than "is any line not the failure string".
-if npx partykit whoami 2>&1 | grep -q "Not logged in"; then
-  echo "❌ PartyKit: not logged in.  Run:  npx partykit login"
+if ! npx wrangler whoami 2>&1 | grep -q "You are logged in"; then
+  echo "❌ Cloudflare: not logged in.  Run:  npx wrangler login"
   exit 1
 fi
 if ! vercel whoami >/dev/null 2>&1; then
@@ -32,11 +32,11 @@ echo "✅ both authenticated"
 
 echo
 echo "──────────────────────────────────────────────"
-echo " 2/3  Deploying signaling server → PartyKit"
+echo " 2/3  Deploying signaling server → Cloudflare Workers"
 echo "──────────────────────────────────────────────"
 
-PARTY_OUT=$(npx partykit deploy 2>&1 | tee /dev/stderr)
-PARTY_HOST=$(echo "$PARTY_OUT" | grep -oE '[a-z0-9-]+\.[a-z0-9-]+\.partykit\.dev' | head -1)
+PARTY_OUT=$(npx wrangler deploy 2>&1 | tee /dev/stderr)
+PARTY_HOST=$(echo "$PARTY_OUT" | grep -oE '[a-z0-9-]+\.[a-z0-9-]+\.workers\.dev' | head -1)
 
 if [ -z "$PARTY_HOST" ]; then
   echo "❌ Could not determine the deployed PartyKit host from the output above."

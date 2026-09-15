@@ -40,8 +40,28 @@ export interface RosterEntry {
  *   ("reach me at this IP and port"). Peers exchange many of these.
  */
 export type SignalPayload =
-  | { k: "description"; sdp: RTCSessionDescriptionInit }
-  | { k: "candidate"; candidate: RTCIceCandidateInit };
+  | { k: "description"; sdp: SessionDescription }
+  | { k: "candidate"; candidate: IceCandidate };
+
+/**
+ * Structural mirrors of RTCSessionDescriptionInit / RTCIceCandidateInit.
+ *
+ * This file is compiled for BOTH the browser and the Cloudflare Workers
+ * runtime, and Workers has no DOM lib — so the protocol cannot reference DOM
+ * types. These are structurally identical, so browser code still passes real
+ * RTC objects straight through with no casting.
+ */
+export interface SessionDescription {
+  type: "offer" | "answer" | "pranswer" | "rollback";
+  sdp?: string;
+}
+
+export interface IceCandidate {
+  candidate?: string;
+  sdpMid?: string | null;
+  sdpMLineIndex?: number | null;
+  usernameFragment?: string | null;
+}
 
 /** Browser → server. */
 export type ClientMessage =

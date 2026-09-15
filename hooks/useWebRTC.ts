@@ -228,15 +228,25 @@ export function useWebRTC({
     for (const link of linksRef.current.values()) link.addLocalStream(localStream);
   }, [localStream]);
 
-  // Mute/camera changes go out on BOTH channels: signaling reaches peers we
-  // have not finished connecting to, the data channel reaches the rest fast.
+  /**
+   * Mute/camera/screen changes go out on BOTH channels: signaling reaches
+   * peers we have not finished connecting to, the data channel reaches the
+   * rest faster.
+   *
+   * The dependency is a SERIALISED key, not the flags object or `signaling`.
+   * Both of those are new identities on every render, which made this effect
+   * re-fire constantly and re-broadcast stale state — it raced with, and
+   * overwrote, the screen-share flag.
+   */
+  const flagsKey = `${localFlags.audio}|${localFlags.video}|${localFlags.screen}`;
   useEffect(() => {
     if (!enabled) return;
-    signaling.send({ t: "media", media: localFlags });
+    const flags = flagsRef.current;
+    sendRef.current?.({ t: "media", media: flags } as never);
     for (const link of linksRef.current.values()) {
-      link.sendData({ t: "media", media: localFlags });
+      link.sendData({ t: "media", media: flags });
     }
-  }, [localFlags, enabled, signaling]);
+  }, [flagsKey, enabled]);
 
   // Tear the whole mesh down on unmount. Without this, peer connections
   // survive navigation and keep uploading video from a page you have left.

@@ -1,6 +1,0 @@
-{
-  "$schema": "https://www.partykit.io/schema.json",
-  "name": "parley",
-  "main": "party/signal.ts",
-  "compatibilityDate": "2025-06-01"
-}

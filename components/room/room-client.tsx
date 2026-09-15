@@ -43,11 +43,27 @@ export function RoomClient({ roomId }: { roomId: string }) {
     ((from: string, n: string, m: never) => void) | null
   >(null);
 
+  /**
+   * One source of truth for media state.
+   *
+   * `useScreenShare` must be created AFTER `useWebRTC` (it needs
+   * replaceVideoTrack), but `useWebRTC` needs to know the screen flag. This
+   * small piece of lifted state breaks the cycle: the share hook writes to
+   * it, and useWebRTC reads it — so exactly one place decides what `screen`
+   * is, and nothing can broadcast a conflicting value.
+   */
+  const [sharingFlag, setSharingFlag] = useState(false);
+
+  const combinedFlags = useMemo(
+    () => ({ ...media.flags, screen: sharingFlag }),
+    [media.flags, sharingFlag],
+  );
+
   const rtc = useWebRTC({
     roomId,
     displayName: name || "Guest",
     localStream: media.stream,
-    localFlags: media.flags,
+    localFlags: combinedFlags,
     enabled: joined,
     onData: (from, peerName, msg) => {
       chatReceiveRef.current?.(from, peerName, msg as never);
@@ -58,6 +74,11 @@ export function RoomClient({ roomId }: { roomId: string }) {
     localStream: media.stream,
     replaceVideoTrack: rtc.replaceVideoTrack,
   });
+
+  // Mirror the share hook's state up so combinedFlags sees it next render.
+  useEffect(() => {
+    setSharingFlag(screen.sharing);
+  }, [screen.sharing]);
 
   const chat = useChat({
     selfId: rtc.selfId,
@@ -76,19 +97,6 @@ export function RoomClient({ roomId }: { roomId: string }) {
     void media.start();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // Keep peers informed that we are (or are not) sharing a screen.
-  useEffect(() => {
-    if (!joined) return;
-    rtc.send({
-      t: "media",
-      media: { ...media.flags, screen: screen.sharing },
-    });
-    rtc.broadcast({
-      t: "media",
-      media: { ...media.flags, screen: screen.sharing },
-    });
-  }, [screen.sharing, joined]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Must be an effect, not a render-phase call: setPanelOpen updates state,
   // and calling it during render puts React into an infinite render loop.
