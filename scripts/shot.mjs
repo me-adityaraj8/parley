@@ -63,7 +63,22 @@ await page.goto(`${BASE}${path}`, { waitUntil: "networkidle0", timeout: 30_000 }
 await page.evaluate(() => document.fonts.ready);
 await new Promise((r) => setTimeout(r, wait));
 
-await page.screenshot({ path: file });
+// ScrollTrigger reveals only fire when the section enters the viewport, so
+// a full-page capture must scroll the whole document first or everything
+// below the fold photographs at opacity 0.
+if (args.includes("--full")) {
+  await page.evaluate(async () => {
+    const step = window.innerHeight * 0.75;
+    for (let y = 0; y < document.body.scrollHeight; y += step) {
+      window.scrollTo(0, y);
+      await new Promise((r) => setTimeout(r, 220));
+    }
+    window.scrollTo(0, 0);
+    await new Promise((r) => setTimeout(r, 400));
+  });
+}
+
+await page.screenshot({ path: file, fullPage: args.includes("--full") });
 
 // Report anything still invisible — catches animations stuck at opacity 0.
 const invisible = await page.evaluate(() =>

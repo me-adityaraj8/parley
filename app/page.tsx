@@ -1,69 +1,33 @@
-"use client";
+import { AmbientBackground } from "@/components/shared/ambient-background";
+import { Navbar } from "@/components/landing/navbar";
+import { Hero } from "@/components/landing/hero";
+import { Features } from "@/components/landing/features";
+import { HowItWorks } from "@/components/landing/how-it-works";
+import { TechFlow } from "@/components/landing/tech-flow";
+import { FinalCta } from "@/components/landing/final-cta";
+import { Footer } from "@/components/landing/footer";
 
-/**
- * TEMPORARY stack-verification page.
- * Replaced by the real landing page in Phase 09 (Task 9.1).
- */
+const REPO_URL = process.env.NEXT_PUBLIC_REPO_URL ?? "https://github.com";
 
-import { useRef } from "react";
-import { Video, MessageSquare, MonitorUp } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { gsap, useGSAP } from "@/lib/gsap";
-
-const ITEMS = [
-  { icon: Video, label: "Peer-to-peer video" },
-  { icon: MonitorUp, label: "Screen sharing" },
-  { icon: MessageSquare, label: "Data channel chat" },
-];
-
-export default function StackCheckPage() {
-  const root = useRef<HTMLDivElement>(null);
-
-  useGSAP(
-    () => {
-      // fromTo, never from — see lib/animations. `from` infers its end value
-      // from the element's current state, which React StrictMode's double
-      // effect invocation can capture mid-animation, freezing elements at 0.
-      gsap
-        .timeline()
-        .fromTo(
-          "[data-anim='title']",
-          { y: 24, opacity: 0 },
-          { y: 0, opacity: 1 },
-        )
-        .fromTo(
-          "[data-anim='card']",
-          { y: 16, opacity: 0 },
-          { y: 0, opacity: 1, stagger: 0.08 },
-          "-=0.5",
-        );
-    },
-    { scope: root },
-  );
-
+export default function LandingPage() {
   return (
-    <div
-      ref={root}
-      className="flex min-h-screen flex-col items-center justify-center gap-8 bg-neutral-950 p-8 text-neutral-100"
-    >
-      <h1 data-anim="title" className="text-4xl font-semibold tracking-tight">
-        Parley — stack check
-      </h1>
-
-      <div className="flex flex-wrap justify-center gap-4">
-        {ITEMS.map(({ icon: Icon, label }) => (
-          <div
-            key={label}
-            data-anim="card"
-            className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-5 py-4"
-          >
-            <Icon className="size-5 text-indigo-400" aria-hidden />
-            <span className="text-sm">{label}</span>
-          </div>
-        ))}
-      </div>
-
-      <Button data-anim="card">ShadCN button</Button>
-    </div>
+    <>
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[60] focus:rounded-full focus:bg-violet focus:px-4 focus:py-2 focus:text-sm focus:text-white"
+      >
+        Skip to content
+      </a>
+      <AmbientBackground />
+      <Navbar repoUrl={REPO_URL} />
+      <main id="main">
+        <Hero />
+        <Features />
+        <HowItWorks />
+        <TechFlow />
+        <FinalCta />
+      </main>
+      <Footer repoUrl={REPO_URL} />
+    </>
   );
 }

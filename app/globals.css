@@ -2,7 +2,12 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-@custom-variant dark (&:is(.dark *));
+/* ==========================================================================
+   PARLEY DESIGN SYSTEM
+   Dark-first. Near-black grounds with a deep indigo undertone, a violet
+   accent ramp for interactive surfaces, and a cyan "live" signal reserved
+   exclusively for real-time state (connected, speaking, sharing).
+   ========================================================================== */
 
 @theme inline {
   --color-background: var(--background);
@@ -10,6 +15,7 @@
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-geist-sans);
+
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -39,6 +45,24 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+
+  /* Parley semantic surfaces */
+  --color-void: var(--pl-void);
+  --color-surface: var(--pl-surface);
+  --color-elevated: var(--pl-elevated);
+  --color-hairline: var(--pl-hairline);
+
+  /* Parley accent ramp */
+  --color-violet: var(--pl-violet);
+  --color-violet-soft: var(--pl-violet-soft);
+  --color-violet-dim: var(--pl-violet-dim);
+
+  /* Real-time signal colours — reserved for live state only */
+  --color-live: var(--pl-live);
+  --color-live-dim: var(--pl-live-dim);
+  --color-warn: var(--pl-warn);
+  --color-danger: var(--pl-danger);
+
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -46,85 +70,234 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+/* Dark-first: :root IS the dark theme. There is no light mode by design —
+   a video call UI is a viewing surface, and a bright chrome around dark
+   video tiles fights the content. */
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --pl-void: oklch(0.145 0.014 272);
+  --pl-surface: oklch(0.185 0.018 272);
+  --pl-elevated: oklch(0.225 0.021 272);
+  --pl-hairline: oklch(1 0 0 / 9%);
+
+  --pl-violet: oklch(0.64 0.191 281);
+  --pl-violet-soft: oklch(0.74 0.14 281);
+  --pl-violet-dim: oklch(0.42 0.13 281);
+
+  --pl-live: oklch(0.79 0.142 196);
+  --pl-live-dim: oklch(0.52 0.1 196);
+  --pl-warn: oklch(0.79 0.15 79);
+  --pl-danger: oklch(0.63 0.2 19);
+
+  --background: var(--pl-void);
+  --foreground: oklch(0.97 0.004 272);
+  --card: var(--pl-surface);
+  --card-foreground: oklch(0.97 0.004 272);
+  --popover: var(--pl-elevated);
+  --popover-foreground: oklch(0.97 0.004 272);
+  --primary: var(--pl-violet);
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: var(--pl-elevated);
+  --secondary-foreground: oklch(0.97 0.004 272);
+  --muted: var(--pl-elevated);
+  --muted-foreground: oklch(0.68 0.015 272);
+  --accent: var(--pl-elevated);
+  --accent-foreground: oklch(0.97 0.004 272);
+  --destructive: var(--pl-danger);
+  --border: var(--pl-hairline);
+  --input: oklch(1 0 0 / 12%);
+  --ring: var(--pl-violet);
+
+  --chart-1: var(--pl-violet);
+  --chart-2: var(--pl-live);
+  --chart-3: oklch(0.7 0.16 320);
+  --chart-4: var(--pl-warn);
+  --chart-5: oklch(0.6 0.15 240);
+
+  --radius: 0.75rem;
+
+  --sidebar: var(--pl-surface);
+  --sidebar-foreground: oklch(0.97 0.004 272);
+  --sidebar-primary: var(--pl-violet);
+  --sidebar-primary-foreground: oklch(0.99 0 0);
+  --sidebar-accent: var(--pl-elevated);
+  --sidebar-accent-foreground: oklch(0.97 0.004 272);
+  --sidebar-border: var(--pl-hairline);
+  --sidebar-ring: var(--pl-violet);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  color-scheme: dark;
 }
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border;
   }
-  body {
-    @apply bg-background text-foreground;
-  }
+
   html {
     @apply font-sans;
+    color-scheme: dark;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    /* Ambient depth: two off-screen radial washes so the page never reads
+       as flat black. Fixed attachment keeps them stable while scrolling. */
+    background-image:
+      radial-gradient(
+        ellipse 80% 55% at 50% -10%,
+        oklch(0.64 0.191 281 / 14%),
+        transparent 70%
+      ),
+      radial-gradient(
+        ellipse 60% 50% at 100% 100%,
+        oklch(0.79 0.142 196 / 7%),
+        transparent 70%
+      );
+    background-attachment: fixed;
+  }
+
+  /* Visible, on-brand focus for keyboard users only. */
+  :focus-visible {
+    @apply outline-none ring-2 ring-violet/70 ring-offset-2 ring-offset-background;
+  }
+
+  ::selection {
+    background: oklch(0.64 0.191 281 / 35%);
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: oklch(1 0 0 / 10%);
+    border-radius: 99px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: oklch(1 0 0 / 18%);
+    background-clip: content-box;
+  }
+}
+
+@layer utilities {
+  /* Glass panel — the primary surface treatment across the product. */
+  .glass {
+    background: oklch(1 0 0 / 4%);
+    backdrop-filter: blur(20px) saturate(140%);
+    -webkit-backdrop-filter: blur(20px) saturate(140%);
+    border: 1px solid var(--pl-hairline);
+  }
+
+  .glass-strong {
+    background: oklch(0.185 0.018 272 / 78%);
+    backdrop-filter: blur(28px) saturate(160%);
+    -webkit-backdrop-filter: blur(28px) saturate(160%);
+    border: 1px solid var(--pl-hairline);
+  }
+
+  /* A hairline highlight along the top edge — reads as light catching a
+     bevel, and is what makes flat panels feel like physical objects. */
+  .bevel {
+    box-shadow: inset 0 1px 0 0 oklch(1 0 0 / 8%);
+  }
+
+  .glow-violet {
+    box-shadow:
+      0 0 0 1px oklch(0.64 0.191 281 / 30%),
+      0 8px 40px -8px oklch(0.64 0.191 281 / 45%);
+  }
+
+  .glow-live {
+    box-shadow:
+      0 0 0 1px oklch(0.79 0.142 196 / 40%),
+      0 0 28px -4px oklch(0.79 0.142 196 / 40%);
+  }
+
+  .text-gradient {
+    background: linear-gradient(
+      180deg,
+      oklch(0.99 0 0) 0%,
+      oklch(0.78 0.03 272) 100%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .text-gradient-violet {
+    background: linear-gradient(
+      100deg,
+      oklch(0.85 0.09 281) 0%,
+      oklch(0.72 0.18 300) 50%,
+      oklch(0.82 0.13 196) 100%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* Blueprint grid used behind the hero and the tech diagram. */
+  .grid-lines {
+    background-image:
+      linear-gradient(to right, oklch(1 0 0 / 3.5%) 1px, transparent 1px),
+      linear-gradient(to bottom, oklch(1 0 0 / 3.5%) 1px, transparent 1px);
+    background-size: 64px 64px;
+  }
+
+  /* Fades any child out toward the edges — keeps grids and rails from
+     ending in a hard line. */
+  .mask-fade-edges {
+    mask-image: radial-gradient(ellipse 65% 65% at 50% 50%, black, transparent);
+    -webkit-mask-image: radial-gradient(
+      ellipse 65% 65% at 50% 50%,
+      black,
+      transparent
+    );
+  }
+
+  .mask-fade-b {
+    mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
+  }
+
+  /* Safe areas for mobile call controls sitting over the home indicator. */
+  .pb-safe {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+  .pt-safe {
+    padding-top: max(1rem, env(safe-area-inset-top));
+  }
+
+  /* GPU hint, applied only while an element is actually animating. */
+  .will-animate {
+    will-change: transform, opacity;
+  }
+}
+
+/* ==========================================================================
+   REDUCED MOTION
+   GSAP is gated separately in lib/animations. This handles CSS-driven
+   motion and is the backstop if any animation escapes that gate.
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
