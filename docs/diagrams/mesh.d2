@@ -1,0 +1,102 @@
+# Mesh topology — why the room caps at six
+# Render:  npm run diagrams
+
+# `down` places unconnected top-level groups left-to-right.
+direction: down
+
+style.fill: "#0b0b12"
+
+vars: {
+  d2-config: {
+    theme-id: 200
+    pad: 50
+    layout-engine: dagre
+  }
+}
+
+classes: {
+  peer: {
+    shape: circle
+    width: 70
+    style: {
+      fill: "#161228"
+      stroke: "#8b7cf6"
+      stroke-width: 2
+      font-color: "#f2f0ff"
+      font-size: 20
+    }
+  }
+  link: {
+    style: {
+      stroke: "#22d3ee"
+      stroke-width: 2
+    }
+  }
+  group: {
+    style: {
+      fill: "transparent"
+      stroke: "#2a2f3a"
+      stroke-dash: 3
+      font-color: "#94a3b8"
+      font-size: 18
+      border-radius: 12
+    }
+  }
+}
+
+two: "2 peers · 1 link" {
+  class: group
+  a: A { class: peer }
+  b: B { class: peer }
+  a -- b: { class: link }
+}
+
+three: "3 peers · 3 links" {
+  class: group
+  a: A { class: peer }
+  b: B { class: peer }
+  c: C { class: peer }
+  a -- b: { class: link }
+  b -- c: { class: link }
+  a -- c: { class: link }
+}
+
+four: "4 peers · 6 links" {
+  class: group
+  a: A { class: peer }
+  b: B { class: peer }
+  c: C { class: peer }
+  d: D { class: peer }
+  a -- b: { class: link }
+  a -- c: { class: link }
+  a -- d: { class: link }
+  b -- c: { class: link }
+  b -- d: { class: link }
+  c -- d: { class: link }
+}
+
+six: "6 peers · 15 links  (room cap)" {
+  class: group
+  style.stroke: "#7c5cff"
+  a: A { class: peer }
+  b: B { class: peer }
+  c: C { class: peer }
+  d: D { class: peer }
+  e: E { class: peer }
+  f: F { class: peer }
+  a -- b: { class: link }
+  a -- c: { class: link }
+  a -- d: { class: link }
+  a -- e: { class: link }
+  a -- f: { class: link }
+  b -- c: { class: link }
+  b -- d: { class: link }
+  b -- e: { class: link }
+  b -- f: { class: link }
+  c -- d: { class: link }
+  c -- e: { class: link }
+  c -- f: { class: link }
+  d -- e: { class: link }
+  d -- f: { class: link }
+  e -- f: { class: link }
+}

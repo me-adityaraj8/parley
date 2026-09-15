@@ -18,7 +18,9 @@
     "test:share": "node scripts/test-screenshare.mjs",
     "test:all": "npm run test:signaling && npm run test:call && npm run test:mesh && npm run test:share && npm run test:a11y",
     "test:a11y": "node scripts/test-a11y.mjs",
-    "deploy": "bash scripts/deploy.sh"
+    "deploy": "bash scripts/deploy.sh",
+    "diagrams": "node scripts/render-diagrams.mjs",
+    "check:mermaid": "node scripts/check-mermaid.mjs"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",
@@ -41,6 +43,7 @@
     "@cloudflare/workers-types": "^5.20260915.1",
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
+    "@terrastruct/d2": "^0.1.33",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
