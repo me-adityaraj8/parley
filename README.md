@@ -5,9 +5,9 @@
 **Peer-to-peer video calling in the browser.**
 Audio, video and chat travel directly between participants — never through a server.
 
-[**Live demo →**](https://parley-me-adityaraj8s-projects.vercel.app)
+[**Live demo →**](https://parley-taupe-phi.vercel.app)
 
-[![Live](https://img.shields.io/badge/demo-live-22d3ee?style=flat-square)](https://parley-me-adityaraj8s-projects.vercel.app)
+[![Live](https://img.shields.io/badge/demo-live-22d3ee?style=flat-square)](https://parley-taupe-phi.vercel.app)
 [![Next.js](https://img.shields.io/badge/Next.js-15-000?style=flat-square&logo=next.js)](https://nextjs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org)
 [![WebRTC](https://img.shields.io/badge/WebRTC-mesh-8b7cf6?style=flat-square)](https://webrtc.org)
