@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { LinkState, Participant, PanelId } from "@/types";
 import { useLocalMedia } from "@/hooks/useLocalMedia";
 import { useAudioLevel } from "@/hooks/useAudioLevel";
+import { useActiveSpeakers } from "@/hooks/useActiveSpeakers";
 import { useWebRTC } from "@/hooks/useWebRTC";
 import { useScreenShare } from "@/hooks/useScreenShare";
 import { useChat } from "@/hooks/useChat";
@@ -120,9 +121,19 @@ export function RoomClient({ roomId }: { roomId: string }) {
     ],
   );
 
+  // Remote speaking is detected by analysing the audio we actually receive,
+  // rather than trusting peers to announce it.
+  const remoteSpeaking = useActiveSpeakers(rtc.participants);
+
   const participants = useMemo(
-    () => [localParticipant, ...rtc.participants],
-    [localParticipant, rtc.participants],
+    () => [
+      localParticipant,
+      ...rtc.participants.map((p) => ({
+        ...p,
+        speaking: Boolean(remoteSpeaking[p.id]) && p.media.audio,
+      })),
+    ],
+    [localParticipant, rtc.participants, remoteSpeaking],
   );
 
   const sharer = participants.find((p) => p.media.screen) ?? null;

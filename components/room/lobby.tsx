@@ -18,6 +18,8 @@ import type {
   MediaFlags,
   PermissionState,
 } from "@/types";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useGSAP } from "@/lib/gsap";
 import { fadeUp, scaleIn } from "@/lib/animations";
 import { cn } from "@/lib/utils";
@@ -180,13 +182,13 @@ export function Lobby(props: LobbyProps) {
           <label htmlFor="display-name" className="text-sm text-muted-foreground">
             Your name
           </label>
-          <input
+          <Input
             id="display-name"
             value={props.name}
             onChange={(e) => props.onName(e.target.value)}
             placeholder="Who's joining?"
             maxLength={32}
-            className="mt-1.5 w-full rounded-xl border border-hairline bg-white/5 px-3.5 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-violet"
+            className="mt-1.5 h-11 rounded-xl border-hairline bg-white/5"
           />
         </div>
 
@@ -237,9 +239,10 @@ export function Lobby(props: LobbyProps) {
           </div>
         )}
 
-        <button
+        <Button
           data-lobby-item
           type="button"
+          size="lg"
           onClick={props.onJoin}
           disabled={!canJoin || props.joining}
           className={cn(
@@ -263,7 +266,7 @@ export function Lobby(props: LobbyProps) {
               />
             </>
           )}
-        </button>
+        </Button>
       </div>
     </div>
   );

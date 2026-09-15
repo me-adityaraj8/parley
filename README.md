@@ -208,9 +208,8 @@ These are deliberate trade-offs, not unfinished work.
 5. **Rooms are link-secured.** Anyone with the link can join. There are no
    accounts, no lobby approval, and no host controls.
 
-6. **Active speaker detection is local-only.** Each client analyses its own
-   microphone and broadcasts state; remote levels are not analysed, which
-   keeps CPU flat as the room grows.
+6. **No host controls.** There is no mute-others, kick, or lobby approval.
+   Everyone in a room has equal authority.
 
 7. **Two build-time `npm audit` advisories** in `postcss`, transitive under
    Next 15. Build-time only, not shipped to the browser; the fix requires

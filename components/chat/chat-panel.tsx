@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { MessageSquare, Send, X, AlertCircle } from "lucide-react";
 import type { ChatMessage } from "@/types";
+import { Input } from "@/components/ui/input";
 import { gsap, useGSAP } from "@/lib/gsap";
 import { messageIn, panelIn, prefersReducedMotion } from "@/lib/animations";
 import { avatarStyle, initials } from "@/lib/room";
@@ -123,7 +124,7 @@ export function ChatPanel({
         <label htmlFor="chat-input" className="sr-only">
           Message
         </label>
-        <input
+        <Input
           id="chat-input"
           value={draft}
           onChange={(e) => {
@@ -134,11 +135,7 @@ export function ChatPanel({
           placeholder="Send a message"
           maxLength={2000}
           autoComplete="off"
-          className={cn(
-            "min-w-0 flex-1 rounded-full bg-white/5 px-4 py-2 text-sm",
-            "placeholder:text-muted-foreground outline-none",
-            "focus-visible:ring-2 focus-visible:ring-violet",
-          )}
+          className="min-w-0 flex-1 rounded-full border-transparent bg-white/5 px-4"
         />
         <button
           type="submit"

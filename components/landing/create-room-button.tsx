@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Loader2, Video } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { generateRoomId } from "@/lib/room";
 import { useMagnetic } from "@/lib/animations";
 import { cn } from "@/lib/utils";
@@ -30,11 +31,12 @@ export function CreateRoomButton({ size = "lg", className }: CreateRoomButtonPro
   };
 
   return (
-    <button
+    <Button
       ref={magnetRef}
       type="button"
       onClick={create}
       disabled={pending}
+      size={size === "lg" ? "lg" : "sm"}
       className={cn(
         "group relative inline-flex items-center justify-center gap-2 overflow-hidden rounded-full font-medium transition-all",
         "bg-violet text-white hover:brightness-110",
@@ -65,6 +67,6 @@ export function CreateRoomButton({ size = "lg", className }: CreateRoomButtonPro
           aria-hidden
         />
       )}
-    </button>
+    </Button>
   );
 }
