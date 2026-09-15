@@ -18,7 +18,9 @@ echo "────────────────────────�
 echo " 1/3  Checking authentication"
 echo "──────────────────────────────────────────────"
 
-if ! npx partykit whoami 2>&1 | grep -qv "Not logged in"; then
+# `whoami` always prints a banner, so test for the failure string itself
+# rather than "is any line not the failure string".
+if npx partykit whoami 2>&1 | grep -q "Not logged in"; then
   echo "❌ PartyKit: not logged in.  Run:  npx partykit login"
   exit 1
 fi
