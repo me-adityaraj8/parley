@@ -21,10 +21,22 @@ export default function StackCheckPage() {
 
   useGSAP(
     () => {
+      // fromTo, never from — see lib/animations. `from` infers its end value
+      // from the element's current state, which React StrictMode's double
+      // effect invocation can capture mid-animation, freezing elements at 0.
       gsap
         .timeline()
-        .from("[data-anim='title']", { y: 24, opacity: 0 })
-        .from("[data-anim='card']", { y: 16, opacity: 0, stagger: 0.08 }, "-=0.5");
+        .fromTo(
+          "[data-anim='title']",
+          { y: 24, opacity: 0 },
+          { y: 0, opacity: 1 },
+        )
+        .fromTo(
+          "[data-anim='card']",
+          { y: 16, opacity: 0 },
+          { y: 0, opacity: 1, stagger: 0.08 },
+          "-=0.5",
+        );
     },
     { scope: root },
   );
