@@ -87,17 +87,41 @@ is deliberate and stated everywhere it matters, including in
 | ♿ | **Accessible** | Keyboard shortcuts, ARIA, real `prefers-reduced-motion` support |
 | 📱 | **Responsive** | 320px → 1920px, mobile safe-area aware |
 
+### Advanced
+
+| | Feature | How it works |
+|---|---|---|
+| 📊 | **Live diagnostics** | `RTCPeerConnection.getStats()` — RTT, jitter, loss, bitrate, codec, ICE candidate pair |
+| 📁 | **P2P file transfer** | 16 KiB chunks over a second data channel, binary framed, backpressure-aware |
+| 🖊️ | **Collaborative whiteboard** | Stroke deltas synced P2P in normalised coordinate space |
+| 🎉 | **Reactions** | Ephemeral emoji over the data channel, GSAP-animated |
+| ✋ | **Raise hand** | Synced state, surfaced on the tile and in the participant panel |
+| 🔦 | **Spotlight** | GSAP Flip transition — tiles glide, never teleport |
+| ⏺️ | **Local recording** | `MediaRecorder` with pause/resume; nothing leaves the device |
+| 🎚️ | **Per-participant volume** | Local playback only — never mutes anyone for others |
+| 📻 | **Push to talk** | Hold Space; ignores keystrokes while typing |
+| 🧪 | **Device lab** | Camera/mic/speaker selection, tone test, real STUN connectivity probe |
+| 📱 | **QR invite** | Generated client-side — the room link never reaches a third party |
+
 <details>
 <summary><b>More screens</b></summary>
 
 <table>
 <tr>
-<td width="62%"><img src="docs/images/lobby.png" alt="Pre-call lobby with camera preview and mic level meter"></td>
+<td width="62%"><img src="docs/images/device-lab.png" alt="Pre-call device lab"></td>
 <td width="38%"><img src="docs/images/mobile.png" alt="Landing page on a 375px viewport"></td>
 </tr>
 <tr>
-<td align="center"><sub>Pre-call lobby — camera preview, live mic meter, device pickers</sub></td>
+<td align="center"><sub>Device lab — camera, mic level, speaker test, live STUN probe</sub></td>
 <td align="center"><sub>Mobile, 375px</sub></td>
+</tr>
+<tr>
+<td><img src="docs/images/whiteboard.png" alt="Collaborative whiteboard"></td>
+<td><img src="docs/images/files.png" alt="Peer-to-peer file transfer panel"></td>
+</tr>
+<tr>
+<td align="center"><sub>Whiteboard — strokes replicate over the data channel</sub></td>
+<td align="center"><sub>File transfer — chunked peer-to-peer, no upload</sub></td>
 </tr>
 </table>
 
@@ -356,6 +380,77 @@ removes the `ondatachannel` race entirely.
 
 ---
 
+## Diagnostics
+
+The HUD reads `RTCPeerConnection.getStats()` once per second. Two details make
+it non-trivial:
+
+**1. Most counters are cumulative.** `bytesReceived` alone says nothing about
+current bitrate, and lifetime `packetsLost` keeps displaying a blip from ten
+minutes ago. Every figure shown is **differentiated against the previous
+sample**, so loss can recover and bitrate reflects now.
+
+**2. The report is a graph, not a list.** A codec name means reading
+`inbound-rtp.codecId`, then looking that id up in the same map. Same for the
+candidate pair behind the connection.
+
+```
+CALL HEALTH                 Excellent
+Round trip                     42 ms
+Jitter                        3.2 ms
+Packet loss                    0.10 %
+
+VIDEO            1280 × 720 · 30 fps
+Bitrate                    2410 kbps
+Codec                            VP9
+
+TRANSPORT
+Candidate pair          srflx ⇄ srflx
+Path                          Direct
+```
+
+Polling only runs while the panel is open — `getStats()` is not free.
+
+---
+
+## Two data channels
+
+```mermaid
+flowchart LR
+    subgraph pc["One RTCPeerConnection"]
+        C["CONTROL · id 0<br/>chat · reactions · hand · presence"]
+        B["BULK · id 1<br/>file chunks · whiteboard strokes"]
+    end
+    C --> R["Responsive:<br/>never queues behind a file"]
+    B --> T["High volume:<br/>backpressure-aware"]
+
+    style C fill:#1a1530,stroke:#8b7cf6,color:#f2f0ff
+    style B fill:#102a2e,stroke:#22d3ee,color:#cffafe
+```
+
+SCTP guarantees ordering **within** a channel, not across channels. A single
+channel would make a chat message queue behind a 200 MB file transfer, so bulk
+traffic gets its own.
+
+### File transfer wire format
+
+```
+┌──────────────┬────────────────────────────┐
+│ uint32 id LE │ payload (≤ 16 KiB)         │
+└──────────────┴────────────────────────────┘
+```
+
+The 4-byte prefix lets interleaved chunks from several concurrent files be
+routed without a channel per file. Binary rather than base64-in-JSON: base64
+inflates payload ~33% and forces a string copy per chunk.
+
+**Backpressure** is mandatory, not optional. `bufferedAmount` is what SCTP has
+accepted but not yet sent; writing without checking it grows an unbounded queue
+and eventually aborts the connection on a slow link. Sending pauses above 4 MB
+and resumes on `bufferedamountlow`.
+
+---
+
 ## Project structure
 
 ```
@@ -453,6 +548,7 @@ browser window to call yourself.
 | `npm run test:call` | 2-browser end-to-end WebRTC call |
 | `npm run test:mesh` | 3-browser mesh test |
 | `npm run test:share` | screen-share / `replaceTrack` test |
+| `npm run test:features` | diagnostics, files, whiteboard, reactions, recording |
 | `npm run test:a11y` | reduced motion, landmarks, keyboard |
 | `npm run test:all` | everything above |
 
@@ -492,8 +588,9 @@ npm run test:all  # terminal 2
 | `test:call` | 13 | 2-way video, data channel, mute sync, departure |
 | `test:mesh` | 7 | 3 peers, 6 directed streams, chat fan-out |
 | `test:share` | 9 | share, restore, track identity preserved |
+| `test:features` | 30 | diagnostics, reactions, hand, spotlight, whiteboard, files, recording, chat, volume, QR |
 | `test:a11y` | 8 | reduced motion, landmarks, keyboard, names |
-| **Total** | **56** | all passing against production |
+| **Total** | **86** | all passing against production |
 
 ### The assertion that matters
 
@@ -504,6 +601,17 @@ video.videoWidth > 0
 That value is non-zero **only** if frames actually arrived, were decoded, and were
 painted. Connection labels, track objects and UI state can all look perfectly
 correct while no media flows — decoded frame dimensions cannot be faked.
+
+The advanced suite applies the same standard:
+
+| Feature | Assertion that cannot be faked |
+|---|---|
+| File transfer | received Blob is **byte-exact** (614,400 bytes) |
+| Whiteboard | remote `canvas` has **2,591 non-transparent pixels** after a stroke |
+| Recording | `MediaRecorder` produced a **374 KB playable blob** |
+| Spotlight | tile width actually grew **694 → 1164 px** |
+| Diagnostics | panel text **changes between two polls** (live, not static) |
+| Volume | remote peer shows **no mute badge** after a local volume change |
 
 ---
 
@@ -585,6 +693,15 @@ These are deliberate trade-offs, not unfinished work.
 6. **No host controls.** No mute-others or kick; everyone is equal.
 7. **Two build-time `npm audit` advisories** in `postcss`, transitive under Next 15.
    Build-time only, never shipped to the browser; the fix requires Next 16.
+8. **Recording captures your own stream only.** Recording every participant
+   would mean compositing remote video onto a canvas and mixing their audio —
+   a different feature. The UI says "Recording locally" rather than implying
+   it captures the room.
+9. **Whiteboard and chat have no late-join sync.** A participant who joins
+   after a stroke is drawn will not see it, because nothing stores it. This is
+   inherent to serverless P2P state, not an oversight.
+10. **File transfers fan out per peer.** In a 6-person room a 100 MB file is
+    uploaded five times. Mesh has no relay to deduplicate through.
 
 ---
 
@@ -596,6 +713,8 @@ These are deliberate trade-offs, not unfinished work.
 - [ ] **`getStats()` diagnostics panel** — live RTT, jitter, loss, candidate pair
 - [ ] **Virtual backgrounds** via `MediaStreamTrackProcessor` + WebGL
 - [ ] **Reconnect-into-room** so a refresh rejoins instead of leaving
+- [ ] **CRDT whiteboard state** so late joiners receive the board
+- [ ] **Composited recording** of the full grid via canvas + Web Audio mixing
 - [ ] **E2EE with insertable streams** for SFU mode
 
 ---
