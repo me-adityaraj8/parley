@@ -3,7 +3,7 @@
 import { useRef } from "react";
 import { Link2, MousePointerClick, Radio } from "lucide-react";
 import { gsap, useGSAP } from "@/lib/gsap";
-import { prefersReducedMotion } from "@/lib/animations";
+import { prefersReducedMotion, revealOnScroll } from "@/lib/animations";
 
 const STEPS = [
   {
@@ -30,18 +30,12 @@ export function HowItWorks() {
     () => {
       const reduced = prefersReducedMotion();
 
-      gsap.fromTo(
-        "[data-step]",
-        { opacity: 0, y: reduced ? 0 : 40 },
-        {
-          opacity: 1,
-          y: 0,
-          duration: reduced ? 0.001 : 0.8,
-          stagger: 0.15,
-          ease: "power3.out",
-          scrollTrigger: { trigger: root.current, start: "top 70%" },
-        },
-      );
+      revealOnScroll("[data-step]", {
+        y: 40,
+        stagger: 0.15,
+        trigger: root.current,
+        start: "top 70%",
+      });
 
       // The rail draws itself as the section scrolls past — a progress
       // indicator that also visually links the three steps.

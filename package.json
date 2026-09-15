@@ -11,7 +11,13 @@
     "shot": "node scripts/shot.mjs",
     "dev:web": "next dev --turbopack -p 3100",
     "dev:party": "partykit dev --port 1999",
-    "deploy:party": "partykit deploy"
+    "deploy:party": "partykit deploy",
+    "test:signaling": "node scripts/test-signaling.mjs",
+    "test:call": "node scripts/test-call.mjs",
+    "test:mesh": "node scripts/test-mesh.mjs",
+    "test:share": "node scripts/test-screenshare.mjs",
+    "test:all": "npm run test:signaling && npm run test:call && npm run test:mesh && npm run test:share && npm run test:a11y",
+    "test:a11y": "node scripts/test-a11y.mjs"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",

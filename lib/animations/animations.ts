@@ -234,3 +234,44 @@ export function floatAmbient(targets: Targets, distance = 18) {
     stagger: { each: 1.4, from: "random" },
   });
 }
+
+/**
+ * Scroll-triggered reveal — the only way sections should animate in.
+ *
+ * With reduced motion we do NOT merely shorten the animation: we skip
+ * ScrollTrigger entirely and set the end state immediately. Leaving content
+ * at opacity 0 waiting for a scroll event is how "accessible" animation
+ * systems make pages permanently blank for the people the setting protects.
+ */
+export function revealOnScroll(
+  targets: Targets,
+  o: RevealOptions & {
+    trigger?: gsap.DOMTarget;
+    start?: string;
+    from?: { y?: number; scale?: number };
+  } = {},
+) {
+  if (prefersReducedMotion()) {
+    gsap.set(targets, { opacity: 1, y: 0, scale: 1, clearProps: "transform" });
+    return;
+  }
+
+  return gsap.fromTo(
+    targets,
+    { opacity: 0, y: o.from?.y ?? o.y ?? 32, scale: o.from?.scale ?? 1 },
+    {
+      opacity: 1,
+      y: 0,
+      scale: 1,
+      duration: o.duration ?? DUR.slow,
+      stagger: o.stagger ?? 0,
+      delay: o.delay ?? 0,
+      ease: o.ease ?? EASE.out,
+      scrollTrigger: {
+        trigger: o.trigger ?? (targets as gsap.DOMTarget),
+        start: o.start ?? "top 78%",
+        once: true,
+      },
+    },
+  );
+}

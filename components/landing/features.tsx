@@ -10,7 +10,7 @@ import {
   Zap,
 } from "lucide-react";
 import { ScrollTrigger, useGSAP } from "@/lib/gsap";
-import { fadeUp, staggerUp } from "@/lib/animations";
+import { revealOnScroll } from "@/lib/animations";
 import { cn } from "@/lib/utils";
 
 const FEATURES = [
@@ -54,16 +54,18 @@ export function Features() {
 
   useGSAP(
     () => {
-      fadeUp("[data-section-head] > *", {
+      revealOnScroll("[data-section-head] > *", {
         stagger: 0.08,
-        scrollTrigger: { trigger: root.current, start: "top 75%" },
-      } as never);
+        trigger: root.current,
+        start: "top 75%",
+      });
 
-      staggerUp("[data-feature]", {
+      revealOnScroll("[data-feature]", {
         y: 32,
         stagger: 0.07,
-        scrollTrigger: { trigger: "[data-feature-grid]", start: "top 80%" },
-      } as never);
+        trigger: "[data-feature-grid]",
+        start: "top 80%",
+      });
 
       // ScrollTriggers created inside useGSAP are reverted with the context,
       // but a manual refresh avoids stale positions when fonts load late.

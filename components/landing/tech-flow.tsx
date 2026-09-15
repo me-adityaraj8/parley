@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { gsap, useGSAP } from "@/lib/gsap";
-import { prefersReducedMotion } from "@/lib/animations";
+import { prefersReducedMotion, revealOnScroll } from "@/lib/animations";
 import { cn } from "@/lib/utils";
 
 interface Stage {
@@ -70,18 +70,14 @@ export function TechFlow() {
         stagger: 0.6,
       });
 
-      gsap.fromTo(
-        "[data-flow-node]",
-        { opacity: 0, scale: 0.9 },
-        {
-          opacity: 1,
-          scale: 1,
-          duration: 0.6,
-          stagger: 0.1,
-          ease: "back.out(1.6)",
-          scrollTrigger: { trigger: root.current, start: "top 70%" },
-        },
-      );
+      revealOnScroll("[data-flow-node]", {
+        from: { scale: 0.9, y: 0 },
+        stagger: 0.1,
+        duration: 0.6,
+        ease: "back.out(1.6)",
+        trigger: root.current,
+        start: "top 70%",
+      });
     },
     { scope: root },
   );

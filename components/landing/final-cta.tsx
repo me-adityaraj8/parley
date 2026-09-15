@@ -2,7 +2,7 @@
 
 import { useRef } from "react";
 import { useGSAP } from "@/lib/gsap";
-import { fadeUp } from "@/lib/animations";
+import { revealOnScroll } from "@/lib/animations";
 import { CreateRoomButton } from "./create-room-button";
 
 export function FinalCta() {
@@ -10,10 +10,10 @@ export function FinalCta() {
 
   useGSAP(
     () => {
-      fadeUp("[data-cta-item]", {
+      revealOnScroll("[data-cta-item]", {
         stagger: 0.09,
-        scrollTrigger: { trigger: root.current, start: "top 78%" },
-      } as never);
+        trigger: root.current,
+      });
     },
     { scope: root },
   );

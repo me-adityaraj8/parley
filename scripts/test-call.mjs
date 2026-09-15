@@ -12,6 +12,28 @@
 
 import puppeteer from "puppeteer-core";
 
+/**
+ * Always release browsers, even when an assertion throws. Without this a
+ * failed run leaves headless instances alive; they pile up across runs, eat
+ * CPU, and make later runs fail for reasons unrelated to the code.
+ */
+const OPEN = [];
+async function trackBrowser(p) {
+  const b = await p;
+  OPEN.push(b);
+  return b;
+}
+async function closeAll() {
+  await Promise.allSettled(OPEN.map((b) => b.close()));
+  OPEN.length = 0;
+}
+process.on("unhandledRejection", async (err) => {
+  console.error("\n💥", err instanceof Error ? err.message : err);
+  await closeAll();
+  process.exit(1);
+});
+
+
 const BRAVE = "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser";
 const BASE = process.env.PARLEY_URL ?? "http://localhost:3100";
 const SHOTS = "/private/tmp/parley-shots";
@@ -28,7 +50,7 @@ function ok(c, m) {
 }
 
 const launch = () =>
-  puppeteer.launch({
+  trackBrowser(puppeteer.launch({
     executablePath: BRAVE,
     headless: true,
     args: [
@@ -40,7 +62,7 @@ const launch = () =>
       "--unsafely-treat-insecure-origin-as-secure=" + BASE,
       "--disable-features=WebRtcHideLocalIpsWithMdns",
     ].filter(Boolean),
-  });
+  }));
 
 console.log(`\n📞 WebRTC end-to-end test — room ${roomId}\n`);
 
