@@ -14,6 +14,7 @@ import {
 import { CreateRoomButton } from "./create-room-button";
 import { JoinRoomForm } from "./join-room-form";
 import { CallPreview } from "./call-preview";
+import { PeerNetwork3D } from "./peer-network-3d";
 
 export function Hero() {
   const root = useRef<HTMLElement>(null);
@@ -63,7 +64,14 @@ export function Hero() {
       ref={root}
       className="relative flex min-h-dvh flex-col items-center justify-center px-5 pb-16 pt-32 sm:pt-36"
     >
-      <div ref={parallaxRef} className="flex w-full max-w-5xl flex-col items-center">
+      {/*
+        The 3D peer network sits behind the copy. Its diamond layout leaves
+        the centre empty on purpose, so the headline reads against clear
+        ground while the architecture frames it.
+      */}
+      <PeerNetwork3D className="top-0 h-[min(100dvh,860px)]" />
+
+      <div ref={parallaxRef} className="relative z-10 flex w-full max-w-5xl flex-col items-center">
         <span
           data-hero="eyebrow"
           data-parallax="0.25"
