@@ -10,7 +10,7 @@ import {
   Zap,
 } from "lucide-react";
 import { ScrollTrigger, useGSAP } from "@/lib/gsap";
-import { revealOnScroll } from "@/lib/animations";
+import { revealOnScroll, useTiltGroup } from "@/lib/animations";
 import { cn } from "@/lib/utils";
 
 const FEATURES = [
@@ -51,6 +51,8 @@ const FEATURES = [
 
 export function Features() {
   const root = useRef<HTMLElement>(null);
+  // Each card tilts independently; the grid owns the instances.
+  const gridRef = useTiltGroup<HTMLDivElement>("[data-feature]", { max: 6, lift: 12 });
 
   useGSAP(
     () => {
@@ -95,6 +97,7 @@ export function Features() {
       </div>
 
       <div
+        ref={gridRef}
         data-feature-grid
         className="mt-14 grid gap-3 sm:grid-cols-3"
       >
@@ -117,9 +120,16 @@ export function Features() {
                   "radial-gradient(400px circle at 50% 0%, oklch(0.64 0.191 281 / 12%), transparent 70%)",
               }}
             />
-            <f.icon className="size-5 text-violet" aria-hidden />
-            <h3 className="mt-4 font-medium tracking-tight">{f.title}</h3>
-            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+            {/* Depth layers: the icon sits furthest forward, body copy sits
+                nearly flat. That difference is what reads as parallax. */}
+            <f.icon data-tilt-layer="1.6" className="size-5 text-violet" aria-hidden />
+            <h3 data-tilt-layer="1" className="mt-4 font-medium tracking-tight">
+              {f.title}
+            </h3>
+            <p
+              data-tilt-layer="0.4"
+              className="mt-2 text-sm leading-relaxed text-muted-foreground"
+            >
               {f.body}
             </p>
           </article>

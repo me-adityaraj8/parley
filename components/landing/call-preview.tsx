@@ -1,9 +1,9 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { Mic, MicOff, MonitorUp, MessageSquare, PhoneOff, Video } from "lucide-react";
 import { gsap, useGSAP } from "@/lib/gsap";
-import { prefersReducedMotion } from "@/lib/animations";
+import { createTilt, prefersReducedMotion } from "@/lib/animations";
 import { cn } from "@/lib/utils";
 
 const PEOPLE = [
@@ -22,6 +22,15 @@ const PEOPLE = [
  */
 export function CallPreview() {
   const root = useRef<HTMLDivElement>(null);
+  const tiltRef = useRef<HTMLDivElement>(null);
+
+  // Cursor tilt on top of the ambient drift. The drift animates rotateX/Y
+  // on the same element, so tilt is attached to a wrapper instead of
+  // fighting it for the transform.
+  useEffect(() => {
+    if (!tiltRef.current) return;
+    return createTilt(tiltRef.current, { max: 5, lift: 18, scale: 1.005, ease: 0.65 });
+  }, []);
 
   useGSAP(
     () => {
@@ -55,12 +64,13 @@ export function CallPreview() {
   );
 
   return (
-    <div
-      ref={root}
-      aria-hidden
-      className="glass-strong rounded-3xl p-2.5 shadow-[0_40px_120px_-40px_rgba(0,0,0,0.9)]"
-      style={{ perspective: 1200 }}
-    >
+    <div ref={tiltRef} className="rounded-3xl">
+      <div
+        ref={root}
+        aria-hidden
+        className="glass-strong rounded-3xl p-2.5 shadow-[0_40px_120px_-40px_rgba(0,0,0,0.9)]"
+        style={{ perspective: 1200 }}
+      >
       <div className="flex items-center gap-2 px-2 py-2">
         <span className="size-2 rounded-full bg-live" />
         <span className="font-mono text-[11px] text-muted-foreground">
@@ -129,6 +139,7 @@ export function CallPreview() {
         <span className={cn("flex size-8 items-center justify-center rounded-full bg-danger/90 text-white")}>
           <PhoneOff className="size-3.5" />
         </span>
+        </div>
       </div>
     </div>
   );
