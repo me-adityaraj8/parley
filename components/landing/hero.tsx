@@ -2,7 +2,7 @@
 
 import { useRef } from "react";
 import { ArrowRight, ShieldCheck, Zap } from "lucide-react";
-import { gsap, useGSAP } from "@/lib/gsap";
+import { gsap, ScrollTrigger, useGSAP } from "@/lib/gsap";
 import {
   DUR,
   EASE,
@@ -20,6 +20,7 @@ export function Hero() {
   const root = useRef<HTMLElement>(null);
   const headline = useRef<HTMLHeadingElement>(null);
   const parallaxRef = useParallax<HTMLDivElement>(20);
+  const camera = useRef<HTMLDivElement>(null);
 
   useGSAP(
     () => {
@@ -59,6 +60,45 @@ export function Hero() {
     { scope: root },
   );
 
+  /**
+   * CINEMATIC SCROLL CAMERA
+   *
+   * Scrolling past the hero reads as the camera pulling back through the
+   * scene rather than the page sliding up: the copy recedes in Z, tips
+   * away, and dissolves as the next section arrives.
+   *
+   * Two deliberate constraints keep it from becoming a gimmick:
+   *  - the text is fully opaque and square-on for the first ~35% of the
+   *    scroll, so it is never animated while someone is still reading it;
+   *  - blur is applied only at the tail end, once opacity is already low.
+   */
+  useGSAP(
+    () => {
+      if (prefersReducedMotion() || !camera.current) return;
+
+      const tl = gsap.timeline({
+        scrollTrigger: {
+          trigger: root.current,
+          start: "top top",
+          end: "bottom top",
+          scrub: 0.9,
+        },
+      });
+
+      // Depth-layered dolly: the closer a layer is, the further it travels.
+      tl.to("[data-cam='near']", { z: -260, yPercent: -9, ease: "none" }, 0)
+        .to("[data-cam='mid']", { z: -160, yPercent: -6, ease: "none" }, 0)
+        .to("[data-cam='far']", { z: -80, yPercent: -3, ease: "none" }, 0)
+        // The whole frame tips away and dims, but only after the reading zone.
+        .to(camera.current, { rotateX: 7, scale: 0.94, ease: "none" }, 0)
+        .to(camera.current, { opacity: 0.25, ease: "none" }, 0.35)
+        .to(camera.current, { filter: "blur(7px)", ease: "none" }, 0.6);
+
+      ScrollTrigger.refresh();
+    },
+    { scope: root },
+  );
+
   return (
     <section
       ref={root}
@@ -71,10 +111,17 @@ export function Hero() {
       */}
       <PeerNetwork3D className="top-0 h-[min(100dvh,860px)]" />
 
-      <div ref={parallaxRef} className="relative z-10 flex w-full max-w-5xl flex-col items-center">
+      <div
+        ref={camera}
+        data-hero-camera
+        className="relative z-10 flex w-full flex-col items-center will-change-transform"
+        style={{ perspective: "1400px", transformStyle: "preserve-3d" }}
+      >
+      <div ref={parallaxRef} className="flex w-full max-w-5xl flex-col items-center">
         <span
           data-hero="eyebrow"
           data-parallax="0.25"
+          data-cam="near"
           className="glass mb-7 inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs text-muted-foreground"
         >
           <span className="relative flex size-1.5">
@@ -87,6 +134,7 @@ export function Hero() {
         <h1
           ref={headline}
           data-parallax="0.15"
+          data-cam="near"
           className="max-w-4xl text-balance text-center text-[2.75rem] font-semibold leading-[1.02] tracking-[-0.03em] sm:text-6xl lg:text-7xl"
         >
           <span className="text-gradient">Talk directly.</span>{" "}
@@ -96,6 +144,7 @@ export function Hero() {
         <p
           data-hero="sub"
           data-parallax="0.3"
+          data-cam="mid"
           className="mt-6 max-w-xl text-balance text-center text-base leading-relaxed text-muted-foreground sm:text-lg"
         >
           Parley opens an encrypted connection straight between browsers. Your
@@ -103,7 +152,7 @@ export function Hero() {
           server that could store them.
         </p>
 
-        <div className="mt-9 flex w-full flex-col items-center gap-3 sm:w-auto sm:flex-row">
+        <div data-cam="mid" className="mt-9 flex w-full flex-col items-center gap-3 sm:w-auto sm:flex-row">
           <div data-hero="cta" className="w-full sm:w-auto">
             <CreateRoomButton className="w-full sm:w-auto" />
           </div>
@@ -112,7 +161,7 @@ export function Hero() {
           </div>
         </div>
 
-        <ul className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-muted-foreground">
+        <ul data-cam="mid" className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-muted-foreground">
           <li data-hero="meta" className="flex items-center gap-1.5">
             <ShieldCheck className="size-3.5 text-live" aria-hidden />
             DTLS-SRTP encrypted
@@ -130,10 +179,12 @@ export function Hero() {
         <div
           data-hero="preview"
           data-parallax="0.45"
+          data-cam="far"
           className="mt-16 w-full max-w-4xl"
         >
           <CallPreview />
         </div>
+      </div>
       </div>
     </section>
   );

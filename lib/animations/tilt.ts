@@ -65,11 +65,21 @@ export function createTilt(el: HTMLElement, options: TiltOptions = {}): () => vo
   const zTo = gsap.quickTo(el, "z", { duration: o.ease, ease: "power3.out" });
   const scaleTo = gsap.quickTo(el, "scale", { duration: o.ease, ease: "power3.out" });
 
-  // Depth layers. Each gets a static Z offset plus its own follow tweens.
+  /**
+   * Depth layers.
+   *
+   * `data-tilt-layer` sets how far a layer travels across the card (parallax
+   * strength); `data-tilt-z` optionally pins it to an exact translateZ in px.
+   *
+   * IMPORTANT: for the Z offsets to render as real depth, no ancestor
+   * between here and the layer may use `overflow: hidden` — per spec that
+   * forces `transform-style: flat` and silently collapses the 3D scene.
+   */
   const layers = Array.from(el.querySelectorAll<HTMLElement>("[data-tilt-layer]")).map(
     (node) => {
       const depth = Number(node.dataset.tiltLayer ?? 0);
-      gsap.set(node, { transformStyle: "preserve-3d", z: depth * 26 });
+      const z = node.dataset.tiltZ !== undefined ? Number(node.dataset.tiltZ) : depth * 26;
+      gsap.set(node, { transformStyle: "preserve-3d", z });
       return {
         depth,
         x: gsap.quickTo(node, "x", { duration: o.ease + 0.1, ease: "power3.out" }),
@@ -104,11 +114,25 @@ export function createTilt(el: HTMLElement, options: TiltOptions = {}): () => vo
   /** Cached on enter so the move handler never reads layout. */
   let rect = el.getBoundingClientRect();
 
+  // Optional reactive layers, animated with transform/opacity only.
+  const glow = el.querySelector<HTMLElement>("[data-tilt-glow]");
+  const border = el.querySelector<HTMLElement>("[data-tilt-border]");
+  const glowScale = glow ? gsap.quickTo(glow, "scale", { duration: 0.6, ease: "power3.out" }) : null;
+  const glowOpacity = glow ? gsap.quickTo(glow, "opacity", { duration: 0.5, ease: "power2.out" }) : null;
+  const borderOpacity = border
+    ? gsap.quickTo(border, "opacity", { duration: 0.45, ease: "power2.out" })
+    : null;
+  if (glow) gsap.set(glow, { scale: 0.85, opacity: 0 });
+  if (border) gsap.set(border, { opacity: 0 });
+
   const onEnter = () => {
     rect = el.getBoundingClientRect();
     zTo(o.lift);
     scaleTo(o.scale);
     glareOpacity?.(1);
+    glowScale?.(1);
+    glowOpacity?.(1);
+    borderOpacity?.(1);
   };
 
   const onMove = (e: PointerEvent) => {
@@ -136,6 +160,9 @@ export function createTilt(el: HTMLElement, options: TiltOptions = {}): () => vo
     zTo(0);
     scaleTo(1);
     glareOpacity?.(0);
+    glowScale?.(0.85);
+    glowOpacity?.(0);
+    borderOpacity?.(0);
     for (const layer of layers) {
       layer.x(0);
       layer.y(0);
@@ -152,6 +179,8 @@ export function createTilt(el: HTMLElement, options: TiltOptions = {}): () => vo
     el.removeEventListener("pointerleave", onLeave);
     gsap.killTweensOf(el);
     for (const layer of layers) gsap.killTweensOf(layer.node);
+    if (glow) gsap.killTweensOf(glow);
+    if (border) gsap.killTweensOf(border);
     if (glareEl) {
       gsap.killTweensOf(glareEl);
       glareEl.remove();
