@@ -38,6 +38,23 @@ const STAGES = [
   },
 ] as const;
 
+/** Signal pulses fired along the signalling path, in sequence order. */
+interface Pulse {
+  /** Position on the scrubbed timeline where this pulse fires. */
+  at: number;
+  path: string;
+  label: string;
+  /** Travel from the end of the path back to the start. */
+  reverse?: boolean;
+}
+
+const PULSES: Pulse[] = [
+  { at: 1.7, path: "#sigPathA", label: "offer" },
+  { at: 2.2, path: "#sigPathB", label: "offer" },
+  { at: 2.7, path: "#sigPathB", label: "answer", reverse: true },
+  { at: 3.1, path: "#sigPathA", label: "answer", reverse: true },
+];
+
 /**
  * The animated explanation of how WebRTC actually connects.
  *
@@ -123,21 +140,107 @@ export function ArchitectureAnimation() {
         .to("[data-packet]", { opacity: 0, duration: 0.4 }, 4.1)
         // 5 — the direct path draws and the server recedes
         .to("[data-p2p-line]", { opacity: 1, drawSVG: "100%", duration: 1.6, ease: "power2.inOut" }, 4.2)
-        .to("[data-server]", { opacity: 0.3, filter: "saturate(0.2)", duration: 1.2 }, 4.4)
-        .to("[data-sig-line]", { opacity: 0.18, duration: 1 }, 4.4)
+        .to("[data-server]", { opacity: 0.22, scale: 0.82, duration: 1.2, transformOrigin: "center" }, 4.4)
+        .to("[data-sig-line]", { opacity: 0.12, duration: 1 }, 4.4)
+        /*
+         * The browsers drift toward each other once the direct path exists.
+         * It is a small move, but it is the moment the diagram stops being
+         * "A and B both talk to a server" and becomes "A and B talk".
+         */
+        .to("[data-browser='a']", { x: 46, duration: 1.4, ease: "power2.inOut" }, 4.4)
+        .to("[data-browser='b']", { x: -46, duration: 1.4, ease: "power2.inOut" }, 4.4)
+        .to("[data-p2p-line]", { strokeWidth: 7, duration: 1.2 }, 4.6)
+        .to("[data-p2p-glow]", { opacity: 1, duration: 1.2 }, 4.6)
+        .to("[data-p2p-label]", { opacity: 1, y: 0, duration: 0.8 }, 5.0)
+        /*
+         * Media packets. They are faster and denser than the signalling
+         * packets above — once the direct path is up, traffic accelerates.
+         */
         .fromTo(
           "[data-media-packet]",
           { opacity: 0 },
           {
             opacity: 1,
-            duration: 1.4,
-            stagger: 0.25,
-            repeat: 2,
+            duration: 0.9,
+            stagger: 0.14,
+            repeat: 3,
             motionPath: { path: "#p2pPath", align: "#p2pPath", alignOrigin: [0.5, 0.5] },
             ease: "none",
           },
           5.2,
         );
+
+      /*
+       * SIGNAL PULSES (section 8)
+       *
+       * Each pulse accelerates along the signalling path, glows, drags a
+       * short trail of fading followers, and vanishes on arrival. They are
+       * on their own timelines rather than the scrubbed one so they play at
+       * a readable speed regardless of how fast the user scrolls.
+       */
+      const pulseTls = PULSES.map((cfg, i) => {
+        const head = `[data-pulse='${i}']`;
+        const trail = `[data-pulse-trail='${i}']`;
+        const t = gsap.timeline({ paused: true });
+
+        t.set([head, trail], { opacity: 0 })
+          .fromTo(
+            head,
+            { opacity: 0, scale: 0.4 },
+            { opacity: 1, scale: 1, duration: 0.18, ease: "power2.out" },
+            0,
+          )
+          .to(
+            head,
+            {
+              duration: 1.05,
+              // Accelerating departure, decelerating arrival.
+              ease: "power2.inOut",
+              motionPath: {
+                path: cfg.path,
+                align: cfg.path,
+                alignOrigin: [0.5, 0.5],
+                start: cfg.reverse ? 1 : 0,
+                end: cfg.reverse ? 0 : 1,
+              },
+            },
+            0,
+          )
+          .to(head, { opacity: 0, scale: 0.5, duration: 0.2 }, 0.95)
+          // Trail: same path, staggered slightly behind, dimmer.
+          .fromTo(
+            trail,
+            { opacity: 0 },
+            {
+              opacity: 0.55,
+              duration: 1.05,
+              stagger: 0.05,
+              ease: "power2.inOut",
+              motionPath: {
+                path: cfg.path,
+                align: cfg.path,
+                alignOrigin: [0.5, 0.5],
+                start: cfg.reverse ? 1 : 0,
+                end: cfg.reverse ? 0 : 1,
+              },
+            },
+            0.06,
+          )
+          .to(trail, { opacity: 0, duration: 0.25 }, 0.9);
+
+        return t;
+      });
+
+      // Fire each pulse once, as the scrub passes its point in the sequence.
+      PULSES.forEach((cfg, i) => {
+        tl.call(
+          () => {
+            pulseTls[i]?.restart();
+          },
+          undefined,
+          cfg.at,
+        );
+      });
 
       // Narrative text follows the scroll independently of the scrub.
       STAGES.forEach((_, i) => {
@@ -231,8 +334,21 @@ export function ArchitectureAnimation() {
             </text>
           </g>
 
+          {/* Glow under the direct path, revealed when it becomes dominant. */}
+          <path
+            data-p2p-glow
+            d="M 160 150 C 300 235, 500 235, 640 150"
+            fill="none"
+            stroke="url(#p2pGrad)"
+            strokeWidth="16"
+            strokeLinecap="round"
+            opacity="0"
+            filter="url(#glow)"
+            style={{ mixBlendMode: "screen" }}
+          />
+
           {/* browsers */}
-          <g data-node>
+          <g data-node data-browser="a">
             <rect x="40" y="100" width="120" height="66" rx="14" fill="oklch(0.22 0.05 281)" stroke="oklch(0.64 0.191 281)" strokeWidth="2" />
             <text x="100" y="130" textAnchor="middle" fill="#f2f0ff" fontSize="14" fontWeight="600">
               Browser A
@@ -241,7 +357,7 @@ export function ArchitectureAnimation() {
               MediaStream
             </text>
           </g>
-          <g data-node>
+          <g data-node data-browser="b">
             <rect x="640" y="100" width="120" height="66" rx="14" fill="oklch(0.22 0.05 281)" stroke="oklch(0.64 0.191 281)" strokeWidth="2" />
             <text x="700" y="130" textAnchor="middle" fill="#f2f0ff" fontSize="14" fontWeight="600">
               Browser B
@@ -251,7 +367,16 @@ export function ArchitectureAnimation() {
             </text>
           </g>
 
-          <text x="400" y="228" textAnchor="middle" fill="oklch(0.79 0.142 196)" fontSize="11" fontWeight="600">
+          <text
+            data-p2p-label
+            x="400"
+            y="228"
+            textAnchor="middle"
+            fill="oklch(0.79 0.142 196)"
+            fontSize="11"
+            fontWeight="600"
+            opacity="0"
+          >
             audio · video · data — encrypted, direct
           </text>
 
@@ -265,8 +390,30 @@ export function ArchitectureAnimation() {
           {[0, 1, 2, 3].map((i) => (
             <circle key={`ice${i}`} data-packet="ice" r="4" fill="oklch(0.85 0.1 300)" opacity="0" />
           ))}
-          {[0, 1, 2, 3, 4].map((i) => (
+          {[0, 1, 2, 3, 4, 5].map((i) => (
             <circle key={`m${i}`} data-media-packet r="6" fill="oklch(0.85 0.13 196)" opacity="0" />
+          ))}
+
+          {/* Signal pulses: a bright head plus three fading trail dots. */}
+          {PULSES.map((cfg, i) => (
+            <g key={`pulse-${i}`}>
+              {[0, 1, 2].map((k) => (
+                <circle
+                  key={k}
+                  data-pulse-trail={i}
+                  r={3.2 - k * 0.7}
+                  fill="oklch(0.86 0.12 288)"
+                  opacity="0"
+                />
+              ))}
+              <circle
+                data-pulse={i}
+                r="6"
+                fill="oklch(0.95 0.06 288)"
+                opacity="0"
+                filter="url(#glow)"
+              />
+            </g>
           ))}
         </svg>
 

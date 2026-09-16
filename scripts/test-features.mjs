@@ -199,13 +199,13 @@ ok(true, "spotlight can be removed");
 // ---- 5. WHITEBOARD ----------------------------------------------------------
 console.log("\n5 · collaborative whiteboard");
 await openMore(a.page, "Whiteboard");
-await a.page.waitForSelector("canvas", { timeout: 10000 });
+await a.page.waitForSelector("[data-whiteboard]", { timeout: 10000 });
 await openMore(b.page, "Whiteboard");
-await b.page.waitForSelector("canvas", { timeout: 10000 });
+await b.page.waitForSelector("[data-whiteboard]", { timeout: 10000 });
 
 // Draw a stroke on A with real pointer events.
 const box = await a.page.evaluate(() => {
-  const c = document.querySelector("canvas");
+  const c = document.querySelector("[data-whiteboard]");
   const r = c.getBoundingClientRect();
   return { x: r.x, y: r.y, w: r.width, h: r.height };
 });
@@ -220,7 +220,7 @@ await a.page.mouse.up();
 // Assert pixels actually changed on the REMOTE canvas.
 const remoteInk = await b.page.evaluate(async () => {
   await new Promise((r) => setTimeout(r, 1200));
-  const c = document.querySelector("canvas");
+  const c = document.querySelector("[data-whiteboard]");
   const ctx = c.getContext("2d");
   const data = ctx.getImageData(0, 0, c.width, c.height).data;
   let lit = 0;
@@ -235,7 +235,7 @@ await b.page.evaluate(() => {
 });
 const clearedInk = await a.page.evaluate(async () => {
   await new Promise((r) => setTimeout(r, 1200));
-  const c = document.querySelector("canvas");
+  const c = document.querySelector("[data-whiteboard]");
   const data = c.getContext("2d").getImageData(0, 0, c.width, c.height).data;
   let lit = 0;
   for (let i = 3; i < data.length; i += 4) if (data[i] > 0) lit++;

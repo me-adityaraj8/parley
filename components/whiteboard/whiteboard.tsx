@@ -204,6 +204,7 @@ export function Whiteboard(props: WhiteboardProps) {
       <div ref={wrap} className="relative min-h-0 flex-1 bg-[#0d0b17]">
         <canvas
           ref={canvas}
+          data-whiteboard
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={stop}

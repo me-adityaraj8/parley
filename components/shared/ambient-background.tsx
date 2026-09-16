@@ -13,6 +13,7 @@
 import { useRef } from "react";
 import { floatAmbient } from "@/lib/animations";
 import { useReveal } from "@/lib/animations";
+import { ParticleField } from "./particle-field";
 import { cn } from "@/lib/utils";
 
 export function AmbientBackground({ className }: { className?: string }) {
@@ -32,6 +33,9 @@ export function AmbientBackground({ className }: { className?: string }) {
       )}
     >
       <div className="absolute inset-0 grid-lines mask-fade-edges opacity-70" />
+
+      {/* One canvas, ~130 particles. Cheaper than a handful of animated divs. */}
+      <ParticleField className="absolute inset-0 z-0 opacity-90" />
 
       <div
         data-glow
