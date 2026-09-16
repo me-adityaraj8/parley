@@ -52,7 +52,18 @@ const FEATURES = [
 export function Features() {
   const root = useRef<HTMLElement>(null);
   // Each card tilts independently; the grid owns the instances.
-  const gridRef = useTiltGroup<HTMLDivElement>("[data-feature]", { max: 6, lift: 12 });
+  /*
+   * A long perspective is deliberate. These cards are up to ~1000px wide,
+   * and perspective magnifies a layer in proportion to its distance from
+   * the card's centre — at 900px the icon at translateZ(60) grew enough to
+   * render outside the card. 2200 keeps real depth while holding every
+   * layer inside its own bounds.
+   */
+  const gridRef = useTiltGroup<HTMLDivElement>("[data-feature]", {
+    max: 6,
+    lift: 12,
+    perspective: 2200,
+  });
 
   useGSAP(
     () => {
@@ -119,7 +130,7 @@ export function Features() {
             <div
               aria-hidden
               data-tilt-layer="-0.35"
-              data-tilt-z="-28"
+              data-tilt-z="-18"
               className="glass absolute inset-0 overflow-hidden rounded-2xl"
             >
               {/* Decorative grid, deepest layer, drifts opposite the content. */}

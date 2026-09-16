@@ -67,10 +67,13 @@ export function Hero() {
    * scene rather than the page sliding up: the copy recedes in Z, tips
    * away, and dissolves as the next section arrives.
    *
-   * Two deliberate constraints keep it from becoming a gimmick:
-   *  - the text is fully opaque and square-on for the first ~35% of the
-   *    scroll, so it is never animated while someone is still reading it;
-   *  - blur is applied only at the tail end, once opacity is already low.
+   * The copy is fully opaque and square-on for the first ~35% of the
+   * scroll, so it is never animated while someone is still reading it.
+   *
+   * NOTE: no `filter` is animated here on purpose. Every glass surface in
+   * the hero uses backdrop-filter, and nesting backdrop-filter under a
+   * filtered, will-change ancestor makes Chromium leave ghost tiles behind.
+   * Depth, scale and opacity carry the effect on their own.
    */
   useGSAP(
     () => {
@@ -91,8 +94,7 @@ export function Hero() {
         .to("[data-cam='far']", { z: -80, yPercent: -3, ease: "none" }, 0)
         // The whole frame tips away and dims, but only after the reading zone.
         .to(camera.current, { rotateX: 7, scale: 0.94, ease: "none" }, 0)
-        .to(camera.current, { opacity: 0.25, ease: "none" }, 0.35)
-        .to(camera.current, { filter: "blur(7px)", ease: "none" }, 0.6);
+        .to(camera.current, { opacity: 0.22, ease: "none" }, 0.35);
 
       ScrollTrigger.refresh();
     },

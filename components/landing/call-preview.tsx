@@ -50,10 +50,14 @@ export function CallPreview() {
           .to(bars, { scaleY: 0.25, duration: 0.3 }, i * 2.2 + 1.8);
       });
 
-      // Slow ambient tilt so the mock never feels like a static image.
+      /*
+       * Ambient drift is rotateX only. A continuous rotateY makes one column
+       * perspective-wider than the other, which reads as a lopsided layout
+       * rather than as depth. Left/right rotation is left to the cursor,
+       * where the user causes it and so expects it.
+       */
       gsap.to(root.current, {
-        rotateX: 1.6,
-        rotateY: -1.6,
+        rotateX: 1.4,
         duration: 7,
         ease: "sine.inOut",
         yoyo: true,
@@ -72,9 +76,9 @@ export function CallPreview() {
        * containing them.
        */
       tiles.forEach((tile, i) => {
-        gsap.set(tile, { z: [16, 8, 4, 11][i] ?? 8, transformStyle: "preserve-3d" });
+        gsap.set(tile, { z: [10, 5, 3, 7][i] ?? 5, transformStyle: "preserve-3d" });
         gsap.to(tile, {
-          z: `+=${4 + i * 1.2}`,
+          z: `+=${2.5 + i * 0.8}`,
           duration: 5 + i * 0.8,
           ease: "sine.inOut",
           yoyo: true,
