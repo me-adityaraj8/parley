@@ -25,15 +25,32 @@ export function CreateRoomButton({ size = "lg", className }: CreateRoomButtonPro
   const [pending, setPending] = useState(false);
   // Held in state so the transition can show the ID the user is about to join.
   const [creating, setCreating] = useState<{ id: string; origin: { x: number; y: number } } | null>(null);
+  /** Minted early so the route can be prefetched before the click. */
+  const pendingId = useRef<string | null>(null);
   const magnetRef = useMagnetic<HTMLButtonElement>(size === "lg" ? 0.3 : 0.15);
   const glowRef = useRef<HTMLSpanElement>(null);
+
+  /**
+   * The room ID is minted on first hover, not on click, so the route can be
+   * prefetched while the user is still deciding. `/r/[roomId]` is a dynamic
+   * route — without this, its RSC payload is not requested until navigation,
+   * and that network round trip lands *after* the transition finishes.
+   */
+  const warm = () => {
+    if (pendingId.current) return;
+    const id = generateRoomId();
+    pendingId.current = id;
+    router.prefetch(`/r/${id}`);
+  };
 
   const create = (e: React.MouseEvent<HTMLButtonElement>) => {
     if (pending) return;
     setPending(true);
+    warm();
+    const id = pendingId.current ?? generateRoomId();
     const r = e.currentTarget.getBoundingClientRect();
     setCreating({
-      id: generateRoomId(),
+      id,
       origin: { x: r.left + r.width / 2, y: r.top + r.height / 2 },
     });
   };
@@ -44,6 +61,8 @@ export function CreateRoomButton({ size = "lg", className }: CreateRoomButtonPro
       ref={magnetRef}
       type="button"
       onClick={create}
+      onPointerEnter={warm}
+      onFocus={warm}
       disabled={pending}
       size={size === "lg" ? "lg" : "sm"}
       className={cn(
