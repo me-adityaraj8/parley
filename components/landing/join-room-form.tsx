@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight } from "lucide-react";
 import { isValidRoomId } from "@/lib/room";
+import { useMagnetic } from "@/lib/animations";
 import { cn } from "@/lib/utils";
 
 /** Accepts a bare room code or a full invite URL pasted from a message. */
@@ -18,6 +19,7 @@ export function JoinRoomForm() {
   const router = useRouter();
   const [value, setValue] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const magnetRef = useMagnetic<HTMLButtonElement>(0.22);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,11 +57,21 @@ export function JoinRoomForm() {
           className="w-full min-w-0 bg-transparent py-2 text-sm outline-none placeholder:text-muted-foreground sm:w-52"
         />
         <button
+          ref={magnetRef}
           type="submit"
           aria-label="Join room"
-          className="flex size-9 shrink-0 items-center justify-center rounded-full bg-white/8 transition-colors hover:bg-white/15"
+          className="relative flex size-9 shrink-0 items-center justify-center rounded-full bg-white/8 transition-colors hover:bg-white/15"
         >
-          <ArrowRight className="size-4" aria-hidden />
+          <span
+            data-magnet-glow
+            aria-hidden
+            className="pointer-events-none absolute -inset-3 rounded-full opacity-0"
+            style={{
+              background:
+                "radial-gradient(closest-side, oklch(0.64 0.191 281 / 45%), transparent 70%)",
+            }}
+          />
+          <ArrowRight data-magnet-icon className="relative size-4" aria-hidden />
         </button>
       </div>
       {error && (

@@ -27,7 +27,7 @@ import type {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useGSAP } from "@/lib/gsap";
-import { fadeUp, scaleIn } from "@/lib/animations";
+import { fadeUp, scaleIn, useMagnetic } from "@/lib/animations";
 import { cn } from "@/lib/utils";
 
 interface LobbyProps {
@@ -66,6 +66,7 @@ export function Lobby(props: LobbyProps) {
   const network = useNetworkProbe();
   const speaker = useSpeakerTest(props.selection.audioOutput);
   const speakerSupported = canSelectSpeaker();
+  const joinRef = useMagnetic<HTMLButtonElement>(0.2);
 
   // Probe connectivity once, as soon as the lab opens.
   useEffect(() => {
@@ -324,6 +325,7 @@ export function Lobby(props: LobbyProps) {
         </div>
 
         <Button
+          ref={joinRef}
           data-lobby-item
           type="button"
           size="lg"
@@ -344,10 +346,7 @@ export function Lobby(props: LobbyProps) {
           ) : (
             <>
               Join call
-              <ArrowRight
-                className="size-4 transition-transform group-hover:translate-x-0.5"
-                aria-hidden
-              />
+              <ArrowRight data-magnet-icon className="size-4" aria-hidden />
             </>
           )}
         </Button>

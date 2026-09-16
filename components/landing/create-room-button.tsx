@@ -76,17 +76,18 @@ export function CreateRoomButton({ size = "lg", className }: CreateRoomButtonPro
     >
       <span
         ref={glowRef}
+        data-magnet-glow
         aria-hidden
-        className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-500 group-hover:opacity-100"
+        className="pointer-events-none absolute -inset-4 opacity-0"
         style={{
           background:
             "radial-gradient(circle at 50% 120%, oklch(0.95 0.05 281 / 45%), transparent 60%)",
         }}
       />
       {pending ? (
-        <Loader2 className={cn("animate-spin", size === "lg" ? "size-4" : "size-3.5")} aria-hidden />
+        <Loader2 data-magnet-icon className={cn("animate-spin", size === "lg" ? "size-4" : "size-3.5")} aria-hidden />
       ) : (
-        <Video className={cn(size === "lg" ? "size-4" : "size-3.5")} aria-hidden />
+        <Video data-magnet-icon className={cn(size === "lg" ? "size-4" : "size-3.5")} aria-hidden />
       )}
       <span className="relative">{pending ? "Starting room…" : "Create room"}</span>
       {size === "lg" && !pending && (

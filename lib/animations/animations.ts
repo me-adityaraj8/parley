@@ -150,40 +150,100 @@ export function textReveal(
 }
 
 /**
- * Magnetic hover: the element drifts toward the cursor, then springs back.
- * Applied to primary CTAs only — it draws the eye, so using it everywhere
- * would make nothing feel important.
+ * Magnetic hover for primary CTAs.
+ *
+ * The button drifts toward the cursor, tilts very slightly toward it, its
+ * icon leads the movement, and a glow swells behind it. Movement is
+ * deliberately small — a button that chases the pointer is a toy; one that
+ * leans a few pixels feels responsive.
+ *
+ * Opt-in children:
+ *   [data-magnet-icon]  travels further than the button (leads the motion)
+ *   [data-magnet-glow]  scales and fades in on approach
  *
  * Returns a cleanup function; callers MUST call it on unmount or the
- * listeners leak.
+ * listeners and quickTo instances leak.
  */
 export function magnetic(el: HTMLElement, strength = 0.32): () => void {
   if (prefersReducedMotion()) return () => {};
-  // Pointer-driven magnetism is meaningless on touch and costs a repaint.
+  // Pointer magnetism is meaningless on touch and costs a repaint.
   if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) {
     return () => {};
   }
 
   const xTo = gsap.quickTo(el, "x", { duration: 0.5, ease: EASE.out });
   const yTo = gsap.quickTo(el, "y", { duration: 0.5, ease: EASE.out });
+  const rotTo = gsap.quickTo(el, "rotation", { duration: 0.6, ease: EASE.out });
+  const scaleTo = gsap.quickTo(el, "scale", { duration: 0.35, ease: EASE.out });
+
+  const icon = el.querySelector<HTMLElement>("[data-magnet-icon]");
+  const iconX = icon ? gsap.quickTo(icon, "x", { duration: 0.65, ease: EASE.out }) : null;
+  const iconY = icon ? gsap.quickTo(icon, "y", { duration: 0.65, ease: EASE.out }) : null;
+
+  const glow = el.querySelector<HTMLElement>("[data-magnet-glow]");
+  const glowScale = glow ? gsap.quickTo(glow, "scale", { duration: 0.55, ease: EASE.out }) : null;
+  const glowOpacity = glow ? gsap.quickTo(glow, "opacity", { duration: 0.4, ease: EASE.out }) : null;
+  if (glow) gsap.set(glow, { scale: 0.7, opacity: 0 });
+
+  let pressed = false;
 
   const onMove = (e: PointerEvent) => {
     const r = el.getBoundingClientRect();
-    xTo((e.clientX - (r.left + r.width / 2)) * strength);
-    yTo((e.clientY - (r.top + r.height / 2)) * strength);
+    const dx = e.clientX - (r.left + r.width / 2);
+    const dy = e.clientY - (r.top + r.height / 2);
+
+    xTo(dx * strength);
+    yTo(dy * strength);
+    // A whisper of rotation — enough to read as physical, not as wobble.
+    rotTo((dx / Math.max(r.width, 1)) * 3);
+
+    // The icon leads, which is what makes the button feel like it is being
+    // pulled rather than translated.
+    iconX?.(dx * strength * 0.55);
+    iconY?.(dy * strength * 0.55);
   };
+
+  const onEnter = () => {
+    if (!pressed) scaleTo(1.03);
+    glowScale?.(1);
+    glowOpacity?.(1);
+  };
+
   const onLeave = () => {
     xTo(0);
     yTo(0);
+    rotTo(0);
+    scaleTo(1);
+    iconX?.(0);
+    iconY?.(0);
+    glowScale?.(0.7);
+    glowOpacity?.(0);
   };
 
-  el.addEventListener("pointermove", onMove);
+  const onDown = () => {
+    pressed = true;
+    scaleTo(0.96);
+  };
+  const onUp = () => {
+    pressed = false;
+    scaleTo(1.03);
+  };
+
+  el.addEventListener("pointermove", onMove, { passive: true });
+  el.addEventListener("pointerenter", onEnter);
   el.addEventListener("pointerleave", onLeave);
+  el.addEventListener("pointerdown", onDown);
+  el.addEventListener("pointerup", onUp);
 
   return () => {
     el.removeEventListener("pointermove", onMove);
+    el.removeEventListener("pointerenter", onEnter);
     el.removeEventListener("pointerleave", onLeave);
+    el.removeEventListener("pointerdown", onDown);
+    el.removeEventListener("pointerup", onUp);
     gsap.killTweensOf(el);
+    if (icon) gsap.killTweensOf(icon);
+    if (glow) gsap.killTweensOf(glow);
   };
 }
 

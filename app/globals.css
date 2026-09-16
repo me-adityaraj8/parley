@@ -168,6 +168,23 @@
     @apply outline-none ring-2 ring-violet/70 ring-offset-2 ring-offset-background;
   }
 
+  /*
+   * Set by the custom cursor component. Scoped to a class so the native
+   * cursor is restored the moment the component unmounts, and never hidden
+   * for touch users or when reduced motion is on — those paths never add it.
+   */
+  html.cursor-hidden,
+  html.cursor-hidden * {
+    cursor: none;
+  }
+  /* Text entry keeps its real caret: a dot is useless for editing. */
+  html.cursor-hidden input,
+  html.cursor-hidden textarea,
+  html.cursor-hidden select,
+  html.cursor-hidden [contenteditable="true"] {
+    cursor: auto;
+  }
+
   ::selection {
     background: oklch(0.64 0.191 281 / 35%);
   }
