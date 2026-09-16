@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ArrowRight, Loader2, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { generateRoomId } from "@/lib/room";
+import { CreateTransition } from "@/components/room/create-transition";
 import { useMagnetic } from "@/lib/animations";
 import { cn } from "@/lib/utils";
 
@@ -22,16 +23,24 @@ interface CreateRoomButtonProps {
 export function CreateRoomButton({ size = "lg", className }: CreateRoomButtonProps) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
+  // Held in state so the transition can show the ID the user is about to join.
+  const [creating, setCreating] = useState<{ id: string; origin: { x: number; y: number } } | null>(null);
   const magnetRef = useMagnetic<HTMLButtonElement>(size === "lg" ? 0.3 : 0.15);
   const glowRef = useRef<HTMLSpanElement>(null);
 
-  const create = () => {
+  const create = (e: React.MouseEvent<HTMLButtonElement>) => {
+    if (pending) return;
     setPending(true);
-    router.push(`/r/${generateRoomId()}`);
+    const r = e.currentTarget.getBoundingClientRect();
+    setCreating({
+      id: generateRoomId(),
+      origin: { x: r.left + r.width / 2, y: r.top + r.height / 2 },
+    });
   };
 
   return (
-    <Button
+    <>
+      <Button
       ref={magnetRef}
       type="button"
       onClick={create}
@@ -67,6 +76,15 @@ export function CreateRoomButton({ size = "lg", className }: CreateRoomButtonPro
           aria-hidden
         />
       )}
-    </Button>
+      </Button>
+
+      {creating && (
+        <CreateTransition
+          roomId={creating.id}
+          origin={creating.origin}
+          onNavigate={() => router.push(`/r/${creating.id}`)}
+        />
+      )}
+    </>
   );
 }

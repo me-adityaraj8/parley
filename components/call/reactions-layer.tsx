@@ -33,25 +33,54 @@ export function ReactionsLayer({ reactions }: { reactions: FloatingReaction[] })
         continue;
       }
 
-      // Slight horizontal drift so a burst of the same emoji does not stack
-      // into a single column.
-      const drift = gsap.utils.random(-50, 50);
-      const spin = gsap.utils.random(-22, 22);
+      /*
+       * Each reaction gets its own curved path rather than a straight rise,
+       * so a burst of the same emoji fans out instead of stacking into a
+       * column. The curve is built as a bezier through three randomised
+       * control points and handed to MotionPath.
+       */
+      const side = Math.random() < 0.5 ? -1 : 1;
+      const sway = gsap.utils.random(40, 95) * side;
+      const path = [
+        { x: 0, y: 0 },
+        { x: sway * 0.55, y: -70 },
+        { x: sway * 0.15, y: -145 },
+        { x: sway, y: -215 },
+      ];
+
+      const spin = gsap.utils.random(-30, 30) * side;
+      const tiltY = gsap.utils.random(-45, 45);
+
+      gsap.set(el, { transformPerspective: 600, transformStyle: "preserve-3d" });
 
       gsap
         .timeline()
+        // Pop toward the viewer as it appears.
         .fromTo(
           el,
-          { opacity: 0, scale: 0.4, y: 0, x: 0, rotate: 0 },
-          { opacity: 1, scale: 1.15, duration: 0.32, ease: "back.out(2.2)" },
+          { opacity: 0, scale: 0.35, z: -120, rotateY: tiltY, rotate: 0 },
+          {
+            opacity: 1,
+            scale: 1.18,
+            z: 60,
+            rotateY: 0,
+            duration: 0.34,
+            ease: "back.out(2.4)",
+          },
         )
-        .to(el, { scale: 1, duration: 0.18, ease: "power2.out" })
+        .to(el, { scale: 1, z: 0, duration: 0.22, ease: "power2.out" })
+        // Then ride the curve, drifting back in Z as it rises away.
         .to(
           el,
-          { y: -170, x: drift, rotate: spin, duration: 2.3, ease: "power1.out" },
-          0.1,
+          {
+            duration: 2.2,
+            ease: "power1.out",
+            motionPath: { path, curviness: 1.25, autoRotate: false },
+          },
+          0.12,
         )
-        .to(el, { opacity: 0, duration: 0.7, ease: "power2.in" }, 1.7);
+        .to(el, { rotate: spin, rotateY: tiltY * 0.6, z: -90, scale: 0.78, duration: 2.2, ease: "power1.out" }, 0.12)
+        .to(el, { opacity: 0, duration: 0.75, ease: "power2.in" }, 1.65);
     }
 
     // Stop the set growing without bound over a long call.
